@@ -21,7 +21,6 @@ function App() {
       <div className='flex justify-center mt-32 bg-gray-200'>
         <Board trialBoardState={trialBoardState} setTrialBoardState={setTrialBoardState}/>
       </div>
-
     </>
   )
 }
@@ -55,7 +54,7 @@ function Board({trialBoardState, setTrialBoardState}) {
   
   
 
-  //Return Lit of available moves
+  //Return List of available moves
   function currentAvailableMoves(coordinate) {
     
     let piece = trialBoardState[coordinate[0]][coordinate[1]]
@@ -78,14 +77,15 @@ function Board({trialBoardState, setTrialBoardState}) {
   
     //Pieces
     //White Pawn
-    if (piece == "♙") {
+    if (piece == "♙" || piece == "♟") {
       let availableMoves = []
 
       //The first move of a white pawn
-      if (coordinate[0] == 6) {
+      if ((coordinate[0] == 6 && pieceIsWhite) || coordinate[0] == 1 && !pieceIsWhite) {
+        multiplier = pieceIsWhite ? 1 : -1
         let moves = [
-          [-1, 0],
-          [-2, 0]
+          [-1*multiplier, 0],
+          [-2*multiplier, 0]
         ]
         
         for (let i = 0; i < moves.length; i++) {
@@ -102,48 +102,12 @@ function Board({trialBoardState, setTrialBoardState}) {
             
           }
         } else {
-          let newRow = coordinate[0] - 1
+          let newRow = coordinate[0] - 1*multiplier
           let newCol = coordinate[1]
           availableMoves.push([newRow, newCol])
         }
 
         availableMovesArray = availableMoves
-        
-        //Pawn capturing
-
-    }
-    //Black Pawn
-    if (piece == "♟") {
-      let availableMoves = []
-
-      //The first move of a white pawn
-      if (coordinate[0] == 1) {
-        let moves = [
-          [1, 0],
-          [2, 0]
-        ]
-        
-        for (let i = 0; i < moves.length; i++) {
-          let move = moves[i]
-          let newRow = coordinate[0] + move[0]
-          let newCol = coordinate[1] + move[1]
-
-          //This pushes the square with the piece into availableMoves because of the potential to capture and there is an additional check to see if the square is full anyway
-          if (trialBoardState[newRow][newCol]) {
-            availableMoves.push([newRow, newCol])
-            break
-          }
-          availableMoves.push([newRow, newCol])
-            
-          }
-        } else {
-          let newRow = coordinate[0] + 1
-          let newCol = coordinate[1]
-          availableMoves.push([newRow, newCol])
-        }
-
-        availableMovesArray = availableMoves
-
         
         //Pawn capturing
 
