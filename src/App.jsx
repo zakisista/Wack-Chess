@@ -167,8 +167,10 @@ function Board({trialBoardState, setTrialBoardState}) {
           let newRow = coordinate[0] + move[0]
           let newCol = coordinate[1] + move[1]
           if (typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined') {
-            if (samePiece(newRow, newCol)) {
-              continue
+            if (trialBoardState[newRow][newCol]) {
+              if (samePiece(newRow, newCol)) {
+                continue
+              }
             }
             availableMoves.push([newRow, newCol])
           }
@@ -234,7 +236,9 @@ function Board({trialBoardState, setTrialBoardState}) {
               break
             }
             if (trialBoardState[newRow][newCol]) {
-              availableMoves.push([newRow, newCol])
+              if (!samePiece(newRow, newCol)) {
+                availableMoves.push([newRow, newCol])
+              }
               break
             }
             //Check if index exists
@@ -270,7 +274,9 @@ function Board({trialBoardState, setTrialBoardState}) {
               break
             }
             if (trialBoardState[newRow][newCol]) {
-              availableMoves.push([newRow, newCol])
+              if (!samePiece(newRow, newCol)) {
+                availableMoves.push([newRow, newCol])
+              }
               break
             }
             //Check if index exists
@@ -304,9 +310,13 @@ function Board({trialBoardState, setTrialBoardState}) {
               break
             }
 
-            //Check if index exists
-            availableMoves.push([newRow, newCol])
+            if (trialBoardState[newRow][newCol]) {
+              if (samePiece(newRow, newCol)) {
+                continue
+              }
             }
+            availableMoves.push([newRow, newCol])
+          }
           
       }
     
@@ -314,6 +324,7 @@ function Board({trialBoardState, setTrialBoardState}) {
     }
 
 
+    console.log(availableMovesArray)
     return availableMovesArray
 }
 
@@ -322,7 +333,8 @@ function Board({trialBoardState, setTrialBoardState}) {
   let convertedCoordinates = []
   let color_arr = colors
   //convert coordinates
-
+  
+  //No moves made
   if (availableMovesArray == null) {
     let color_arr = []
     let boardSize = 8;
@@ -342,6 +354,7 @@ function Board({trialBoardState, setTrialBoardState}) {
     return color_arr
   }
 
+  //Move made
   for (let i = 0; i < availableMovesArray.length; i++) {
 
     let move = availableMovesArray[i]
@@ -402,21 +415,12 @@ function Board({trialBoardState, setTrialBoardState}) {
     // Checks if firstClick is empty 
     if (!firstClick) {
       if (trialBoardState[coordinate[0]][coordinate[1]]) {
+
         setFirstClick(coordinate)
-
-        let piece_name = trialBoardState[coordinate[0]][coordinate[1]]
-        console.log(piece_name)
-
-        let availableMoves = currentAvailableMoves(coordinate)
-        console.log(availableMoves)
-
-        let convertedAvailableMoves = convertCoordinates(availableMoves)
-        console.log(convertedAvailableMoves)
-        
+        convertCoordinates(currentAvailableMoves(coordinate))   
         return
-      } else {
-        return
-      }
+      } 
+      return
     }
 
     let piece_name = trialBoardState[firstClick[0]][firstClick[1]]
