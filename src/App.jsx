@@ -31,6 +31,16 @@ function Board({trialBoardState, setTrialBoardState}) {
   const [firstClick, setFirstClick] = useState(undefined)
   const [isWhiteTurn, setisWhiteTurn] = useState(true)
   const [moveCount, setMoveCount] = useState(0)
+  const [previousBoardState, setPreviousBoardState] = useState([
+    [["♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"],
+    ["♟", "♟", "♟", "♟", "♟", "♟", "♟", "♟"],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null],
+    ["♙", "♙", "♙", "♙", "♙", "♙", "♙", "♙"],
+    ["♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]]
+  ])
   const [colors, setColors] = useState(() => {
     let color_arr = [];
     let boardSize = 8;
@@ -49,10 +59,22 @@ function Board({trialBoardState, setTrialBoardState}) {
     }
     return color_arr
   })
+  const [enpassant, setEnpassant] = useState(null)
 
-  
-  
-  
+  function deepcopy(object) { 
+    return JSON.parse(JSON.stringify(object)) //WTF
+  }
+  useEffect(() => {
+    if (moveCount === 0) {
+      return
+    }
+    setPreviousBoardState((prev) => {
+      let newState = [...prev]
+      newState.push(deepcopy(trialBoardState))
+      return newState
+    })
+  }, [moveCount])
+
 
   //Return List of available moves
   function currentAvailableMoves(coordinate) {
@@ -79,33 +101,77 @@ function Board({trialBoardState, setTrialBoardState}) {
     //White Pawn
     if (piece == "♙" || piece == "♟") {
       let availableMoves = []
+      let multiplier = pieceIsWhite ? -1 : 1
 
-      //The first move of a white pawn
+      let moves = [
+        [1*multiplier, 0],
+        [2*multiplier, 0]
+      ]
+
+      let captureMoves = [
+        [1*multiplier, 1],
+        [1*multiplier, -1]
+      ]
+
+      //Add Capture Moves
+      for (let i = 0; i < captureMoves.length; i++) {
+
+        let captureMove = captureMoves[i]
+        let newRow = coordinate[0] + captureMove[0]
+        let newCol = coordinate[1] + captureMove[1]
+
+        if (trialBoardState[newRow][newCol]) {
+          if (!samePiece(newRow, newCol)) {
+            availableMoves.push([newRow, newCol])
+          }
+        }
+      }
+
+
+      //The first move
       if ((coordinate[0] == 6 && pieceIsWhite) || coordinate[0] == 1 && !pieceIsWhite) {
-        multiplier = pieceIsWhite ? 1 : -1
-        let moves = [
-          [-1*multiplier, 0],
-          [-2*multiplier, 0]
-        ]
-        
+      
+        //Add normal Moves
         for (let i = 0; i < moves.length; i++) {
           let move = moves[i]
           let newRow = coordinate[0] + move[0]
           let newCol = coordinate[1] + move[1]
 
-          //This pushes the square with the piece into availableMoves because of the potential to capture and there is an additional check to see if the square is full anyway
           if (trialBoardState[newRow][newCol]) {
-            availableMoves.push([newRow, newCol])
             break
           }
           availableMoves.push([newRow, newCol])
             
           }
         } else {
-          let newRow = coordinate[0] - 1*multiplier
+          let newRow = coordinate[0] + 1*multiplier
           let newCol = coordinate[1]
-          availableMoves.push([newRow, newCol])
+          if (!trialBoardState[newRow][newCol]) {
+            availableMoves.push([newRow, newCol])
+          }
         }
+      
+      //En passant
+      if ((coordinate[0] == 3 && pieceIsWhite) || coordinate[0] == 4 && !pieceIsWhite) {
+        let pawnLeft = [coordinate[0], coordinate[1] - 1]
+        let pawnRight = [coordinate[0], coordinate[1] + 1]
+
+        if (trialBoardState[pawnLeft[0]][pawnLeft[1]] === ("♟")) {
+          if (previousBoardState[moveCount - 1][1][pawnLeft[1]] === ("♟")) {
+            availableMoves.push([pawnLeft[0] + 1*multiplier], pawnLeft[1])
+          }
+        }
+        
+        if (trialBoardState[pawnRight[0]][pawnRight[1]] === ("♟")) {
+          if (previousBoardState[moveCount - 1][1][pawnRight[1]] === ("♟")) {
+            availableMoves.push([pawnRight[0] + 1*multiplier, pawnRight[1]])
+          }    
+        }
+        
+
+      }
+
+
 
         availableMovesArray = availableMoves
         
@@ -287,8 +353,6 @@ function Board({trialBoardState, setTrialBoardState}) {
       availableMovesArray = availableMoves
     }
 
-
-    console.log(availableMovesArray)
     return availableMovesArray
 }
 
@@ -335,16 +399,13 @@ function Board({trialBoardState, setTrialBoardState}) {
   return color_arr
 }
 
-
-
   //Function to return a List of available moves when a piece is clicked
   //This function needs to only return the array of available moves because that does not depend on the coordinate of the second click
 
-  function isValidMove(coordinate, current_piece_name) {
+  function isValidMove(coordinate) {
     
     let isValid = true
     let availableMoves = []
-    let movesAreAvailable = true
 
     //Check if a coordinate is in a list of available moves
     function coordinateInAvaliableMoves(coordinate, availableMoves) {
@@ -353,19 +414,7 @@ function Board({trialBoardState, setTrialBoardState}) {
 
     availableMoves = currentAvailableMoves(firstClick)
     coordinateInAvaliableMoves(coordinate, availableMoves)
-  
-    // {/*Check turn */}
-    // if (isWhiteTurn) {
-    //   if(blackPieces.includes(current_piece_name)) {
-    //     isValid = false
-    //   }
-    // }
-    // if (!isWhiteTurn) {
-    //   if(whitePieces.includes(current_piece_name)) {
-    //     isValid = false
-    //   }
-    // }
-      
+
       return isValid;
     }
 
@@ -400,7 +449,6 @@ function Board({trialBoardState, setTrialBoardState}) {
         
         setisWhiteTurn(!isWhiteTurn)
         setMoveCount(moveCount+1)
-        console.log(`Move count = ${moveCount}`)
 
         setColors(convertCoordinates(null))
         setFirstClick(null)
@@ -409,11 +457,8 @@ function Board({trialBoardState, setTrialBoardState}) {
       })
 
     } else {
-
-  
       setColors(convertCoordinates(null))
       setFirstClick(null)
-
     }
 
 
