@@ -59,18 +59,15 @@ function Board({trialBoardState, setTrialBoardState}) {
     }
     return color_arr
   })
-  const [enpassant, setEnpassant] = useState(null)
+  const [enpassant, setEnpassant] = useState({capture: [null, null], count: null, move: [null, null]})
 
-  function deepcopy(object) { 
-    return JSON.parse(JSON.stringify(object)) //WTF
-  }
   useEffect(() => {
     if (moveCount === 0) {
       return
     }
     setPreviousBoardState((prev) => {
       let newState = [...prev]
-      newState.push(deepcopy(trialBoardState))
+      newState.push(structuredClone(trialBoardState))
       return newState
     })
   }, [moveCount])
@@ -96,7 +93,7 @@ function Board({trialBoardState, setTrialBoardState}) {
       let newPieceIsWhite = whitePieces.includes(newPiece) 
       return(newPieceIsWhite === pieceIsWhite)
     }
-  
+    
     //Pieces
     //White Pawn
     if (piece == "♙" || piece == "♟") {
@@ -112,7 +109,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         [1*multiplier, 1],
         [1*multiplier, -1]
       ]
-
+      
       //Add Capture Moves
       for (let i = 0; i < captureMoves.length; i++) {
 
@@ -151,26 +148,77 @@ function Board({trialBoardState, setTrialBoardState}) {
           }
         }
       
+      
+      
       //En passant
-      if ((coordinate[0] == 3 && pieceIsWhite) || coordinate[0] == 4 && !pieceIsWhite) {
+      if (coordinate[0] == 3 && pieceIsWhite) {
         let pawnLeft = [coordinate[0], coordinate[1] - 1]
         let pawnRight = [coordinate[0], coordinate[1] + 1]
 
+        //We don't have to check if the square that the piece is moving to is empty because the black piece could not have moved there otherweise
+
         if (trialBoardState[pawnLeft[0]][pawnLeft[1]] === ("♟")) {
           if (previousBoardState[moveCount - 1][1][pawnLeft[1]] === ("♟")) {
-            availableMoves.push([pawnLeft[0] + 1*multiplier], pawnLeft[1])
+
+            let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
+            availableMoves.push(captureMove)
+
+            let pawnToCapture = [pawnLeft[0], pawnLeft[1]]
+            setEnpassant(() => {
+              return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
+            })
+
           }
         }
         
         if (trialBoardState[pawnRight[0]][pawnRight[1]] === ("♟")) {
           if (previousBoardState[moveCount - 1][1][pawnRight[1]] === ("♟")) {
-            availableMoves.push([pawnRight[0] + 1*multiplier, pawnRight[1]])
+
+            let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
+            availableMoves.push(captureMove)
+
+            let pawnToCapture = [pawnRight[0], pawnRight[1]]
+            setEnpassant(() => {
+              return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
+            })
+
           }    
         }
-        
-
       }
 
+      if (coordinate[0] == 4 && !pieceIsWhite) {
+
+        let pawnLeft = [coordinate[0], coordinate[1] - 1]
+        let pawnRight = [coordinate[0], coordinate[1] + 1]
+
+        if (trialBoardState[pawnLeft[0]][pawnLeft[1]] === ("♙")) {
+          if (previousBoardState[moveCount - 1][6][pawnLeft[1]] === ("♙")) {
+            let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
+            availableMoves.push(captureMove)
+
+            let pawnToCapture = [pawnLeft[0], pawnLeft[1]]
+            setEnpassant(() => {
+              return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
+            })
+
+          }
+        }
+        
+        if (trialBoardState[pawnRight[0]][pawnRight[1]] === ("♙")) {
+          if (previousBoardState[moveCount - 1][6][pawnRight[1]] === ("♙")) {
+
+            let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
+            availableMoves.push(captureMove)
+
+            let pawnToCapture = [pawnRight[0], pawnRight[1]]
+            setEnpassant(() => {
+              return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
+            })
+
+          }    
+        }
+      
+      }
 
 
         availableMovesArray = availableMoves
@@ -407,9 +455,14 @@ function Board({trialBoardState, setTrialBoardState}) {
     let isValid = true
     let availableMoves = []
 
+    if ((coordinate[0] === firstClick[0]) && (coordinate[1] === firstClick[1])) {
+      isValid = false
+      return isValid;
+    }
+
     //Check if a coordinate is in a list of available moves
     function coordinateInAvaliableMoves(coordinate, availableMoves) {
-      isValid = availableMoves.some((a) => a.every((v, i) => v === coordinate[i])); // if it works it works
+      isValid = availableMoves.some((a) => a.every((v, i) => v === coordinate[i])); // if it works it works    
     }
 
     availableMoves = currentAvailableMoves(firstClick)
@@ -441,8 +494,30 @@ function Board({trialBoardState, setTrialBoardState}) {
 
 
     if (isValidMove(coordinate, piece_name)) {
+      
       setTrialBoardState((prev) =>{
-        let changeBoardState = prev.slice()
+        let changeBoardState = structuredClone(prev)
+
+        if ((coordinate[0] === enpassant.move[0]) && (coordinate[1] === enpassant.move[1])) {
+          console.log('board should be changed')
+          console.log([enpassant.capture[0], enpassant.capture[1]])
+
+          let currentRow = enpassant.capture[0]
+          let currentCol = enpassant.capture[1]
+
+          console.log(currentRow, currentCol)
+
+          changeBoardState[coordinate[0]][coordinate[1]] = piece_name
+          changeBoardState[firstClick[0]][firstClick[1]] = null
+
+          changeBoardState[currentRow][currentCol] = null
+          
+          setEnpassant({capture: [null, null], count: null, move: [null, null]})
+          setColors(convertCoordinates(null))
+          setFirstClick(null)
+
+          return changeBoardState
+        }
 
         changeBoardState[coordinate[0]][coordinate[1]] = piece_name
         changeBoardState[firstClick[0]][firstClick[1]] = null
