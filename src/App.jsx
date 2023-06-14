@@ -60,6 +60,15 @@ function Board({trialBoardState, setTrialBoardState}) {
     return color_arr
   })
   const [enpassant, setEnpassant] = useState({capture: [null, null], count: null, move: [null, null]})
+  const [blackKing, setBlackKing] = useState({position: [0, 4], hasMoved: false, isChecked: false, castleSquaresAttacked: false})
+  const [whiteKing, setWhiteKing] = useState({position: [7, 4], hasMoved: false, isChecked: false, castleSquaresAttacked: false})
+  const [whiteAttackMap, setWhiteAttackMap] = useState([])
+  const [blackAttackMap, setBlackAttackMap] = useState([])
+
+
+  // useEffect(() => {
+  //   setAttackMap()
+  // }, [firstClick])
 
   useEffect(() => {
     if (moveCount === 0) {
@@ -72,16 +81,83 @@ function Board({trialBoardState, setTrialBoardState}) {
     })
   }, [moveCount])
 
+  function kingUnderCheck() {
+    if (coordinateInAvaliableMoves(whiteKing.position, blackAttackMap)) {
+      console.log("white King is under check")
+    }
+    if (coordinateInAvaliableMoves(blackKing.position, whiteAttackMap)) {
+      console.log("Black King is under check")
+    }
+  }
 
-  //Return List of available moves
-  function currentAvailableMoves(coordinate) {
+  //Check if a coordinate is in a list of available moves
+  function coordinateInAvaliableMoves(coordinate, availableMoves) {
+    let value = availableMoves.some((a) => a.every((v, i) => v === coordinate[i])); // if it works it works   
+    return value 
+  }
+
+  //Spagetti spagetti spagetti
+  function setAttackMap() {
+    let blackPieces = ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
+    let whitePieces = ["♙","♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
+
+    let blackAttackMap = []
+    let whiteAttackMap = []
+    let blackPieceCoordinates = []
+    let whitePieceCoordinates = []
+
+
+    //Fetch coordinates of white and black pieces
+    for (let row = 0; row < trialBoardState.length; row++) {
+      for (let col = 0; col < trialBoardState[0].length; col++) {
+        if (blackPieces.includes(trialBoardState[row][col])) {
+          blackPieceCoordinates.push([row, col])
+        }
+        if (whitePieces.includes(trialBoardState[row][col])) {
+          whitePieceCoordinates.push([row, col])
+        }
+      }
+    }
     
-    let piece = trialBoardState[coordinate[0]][coordinate[1]]
-    let availableMovesArray = []
+    //Creating black Attack Map
+    for (let i = 0; i < blackPieceCoordinates.length; i++) {
+      let current_coordinate = blackPieceCoordinates[i]
+      let current_list = currentAvailableMoves(current_coordinate, true) //Attack moves "true"
+      if (current_list) {
+        for (let j = 0; j < current_list.length; j++) {
+          blackAttackMap.push(current_list[j])
+        }
+      }
+    }
+
+    //White Attack Map
+    for (let i = 0; i < whitePieceCoordinates.length; i++) {
+      let current_coordinate = whitePieceCoordinates[i]
+      let current_list = currentAvailableMoves(current_coordinate, true)
+      if (current_list) {
+        for (let j = 0; j < current_list.length; j++) {
+          whiteAttackMap.push(current_list[j])
+        }
+      }
+    }
+
+    setBlackAttackMap(blackAttackMap)
+    setWhiteAttackMap(whiteAttackMap)
+  }
+  
+  //Return List of available moves
+  function currentAvailableMoves(coordinate, attack) {
     let blackPieces = ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
     let whitePieces = ["♙", "♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
-    let pieceIsWhite = true
 
+    let availableMovesArray = []
+    let attackMovesArray = []
+    let pieceIsWhite = true
+    let piece = null
+
+    if (Array.isArray(coordinate)) {
+      piece = trialBoardState[coordinate[0]][coordinate[1]]
+    }
     //Is current piece white
     if (blackPieces.includes(piece)) {
       pieceIsWhite = false
@@ -92,6 +168,65 @@ function Board({trialBoardState, setTrialBoardState}) {
       let newPiece = trialBoardState[current_row][current_col]
       let newPieceIsWhite = whitePieces.includes(newPiece) 
       return(newPieceIsWhite === pieceIsWhite)
+    }
+    function coordinateExists(newRow, newCol) {
+      let exists = typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined'
+      return exists
+    }
+    //appends attackMovesArray and availableMoves conditionally
+    function addMove(coordinate, move, scale, stopIfPiece) {
+      let add = true
+      if (!scale) {
+        scale = 1
+      }
+      let scaleLength = structuredClone(scale)
+
+      if (stopIfPiece === true) {
+        let newRow = coordinate[0] + scaleLength*move[0]
+        let newCol = coordinate[1] + scaleLength*move[1]
+        let samePieceExists = false
+
+        
+        //if move exists
+        if (coordinateExists(newRow, newCol)) {
+          attackMovesArray.push([newRow, newCol]) //For the attack map
+          console.log([newRow, newCol], samePieceExists)
+
+          if (trialBoardState[newRow][newCol] && samePiece(newRow, newCol)) {
+            add = false
+            return add
+          }
+          if (trialBoardState[newRow][newCol] && (!samePiece(newRow, newCol))) {
+            
+            availableMovesArray.push([newRow, newCol])
+            add = false
+            return add
+          }
+
+          availableMovesArray.push([newRow, newCol])
+        }
+        if(!coordinateExists(newRow, newCol)) {
+          add = false
+          return false
+        }
+        return add
+      }
+
+      let newRow = coordinate[0] + scaleLength*move[0]
+      let newCol = coordinate[1] + scaleLength*move[1]
+      //if move exists
+      if (coordinateExists(newRow, newCol)) {
+        attackMovesArray.push([newRow, newCol]) //For the attack map
+        //if that square contains a piece of the same color
+        if (trialBoardState[newRow][newCol] && samePiece(newRow, newCol)) {
+          return
+        }
+        availableMovesArray.push([newRow, newCol])
+      }
+      return add
+      //For pieces that need to stop iterating if a piece exists
+
+
     }
     
     //Pieces
@@ -117,9 +252,12 @@ function Board({trialBoardState, setTrialBoardState}) {
         let newRow = coordinate[0] + captureMove[0]
         let newCol = coordinate[1] + captureMove[1]
 
-        if (trialBoardState[newRow][newCol]) {
-          if (!samePiece(newRow, newCol)) {
-            availableMoves.push([newRow, newCol])
+        if (typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined') {
+            attackMovesArray.push([newRow, newCol]) //For the attack map
+          if (trialBoardState[newRow][newCol]) {
+            if (!samePiece(newRow, newCol)) {
+              availableMoves.push([newRow, newCol])
+            }
           }
         }
       }
@@ -238,27 +376,15 @@ function Board({trialBoardState, setTrialBoardState}) {
         [2, -1],
         [-2, -1]
       ]
-      let availableMoves = []
 
       for (let i = 0; i < moves.length; i++) {
+          let add = true
           let move = moves[i]
-          let newRow = coordinate[0] + move[0]
-          let newCol = coordinate[1] + move[1]
-          if (typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined') {
-            if (trialBoardState[newRow][newCol]) {
-              if (samePiece(newRow, newCol)) {
-                continue
-              }
-            }
-            availableMoves.push([newRow, newCol])
-          }
-        
+          add = addMove(coordinate, move)        
       }
-      availableMovesArray = availableMoves
     }
     //Bishop
     if (piece == "♗" || piece == "♝") {
-      let availableMoves = []
       let symbol = [
         [1, 1],
         [-1, 1],
@@ -269,32 +395,18 @@ function Board({trialBoardState, setTrialBoardState}) {
       //Up and left
       for (let j = 0; j < symbol.length; j++) {
         let currentSymbol = symbol[j]
-
+        let add = true
         for (let i = 1; i < 9; i++) {
-            let newRow = coordinate[0] + (i*currentSymbol[0])
-            let newCol = coordinate[1] + (i*currentSymbol[1])
-
-            //Check if the square is on the Board
-            if (!(typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined')) {
-              break
-            }
-            //Check if the square contains a piece of the same color
-            if (trialBoardState[newRow][newCol]) {
-              if (!samePiece(newRow, newCol)) {
-                availableMoves.push([newRow, newCol])
-              }
-              break
-            }
-            //Check if index exists
-            availableMoves.push([newRow, newCol])
-          }
+           add = addMove(coordinate, currentSymbol, i, true)
+           if (add === false) {
+            add = true
+            break
+           }
+        }
       }
-    
-      availableMovesArray = availableMoves
     }
     //Rook
     if (piece == "♖" || piece == "♜") {
-      let availableMoves = []
       let symbol = [
         [1, 0],
         [-1, 0],
@@ -302,33 +414,20 @@ function Board({trialBoardState, setTrialBoardState}) {
         [0, 1]
       ]
   
-      //Up and left
       for (let j = 0; j < symbol.length; j++) {
         let currentSymbol = symbol[j]
-
+        let add = true
         for (let i = 1; i < 9; i++) {
-            let newRow = coordinate[0] + (i*currentSymbol[0])
-            let newCol = coordinate[1] + (i*currentSymbol[1])
-      
-            if (!(typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined')) {
-              break
-            }
-            if (trialBoardState[newRow][newCol]) {
-              if (!samePiece(newRow, newCol)) {
-                availableMoves.push([newRow, newCol])
-              }
-              break
-            }
-            //Check if index exists
-            availableMoves.push([newRow, newCol])
-          }
+           add = addMove(coordinate, currentSymbol, i, true)
+           if (add === false) {
+            add = true
+            break
+           }
+        }
       }
-    
-      availableMovesArray = availableMoves
     }
     //Queen
     if (piece == "♕" || piece == "♛") {
-      let availableMoves = []
       let symbol = [
         [1, 0],
         [-1, 0],
@@ -343,31 +442,19 @@ function Board({trialBoardState, setTrialBoardState}) {
       //Up and left
       for (let j = 0; j < symbol.length; j++) {
         let currentSymbol = symbol[j]
-
+        let add = true
         for (let i = 1; i < 9; i++) {
-            let newRow = coordinate[0] + (i*currentSymbol[0])
-            let newCol = coordinate[1] + (i*currentSymbol[1])
-
-            if (!(typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined')) {
-              break
-            }
-            if (trialBoardState[newRow][newCol]) {
-              if (!samePiece(newRow, newCol)) {
-                availableMoves.push([newRow, newCol])
-              }
-              break
-            }
-            //Check if index exists
-            availableMoves.push([newRow, newCol])
-          }
+           add = addMove(coordinate, currentSymbol, i, true)
+           if (add === false) {
+            add = true
+            break
+           }
+        }
       }
-    
-      availableMovesArray = availableMoves
     }
     //King
     if (piece == "♔" || piece == "♚") {
-      let availableMoves = []
-      let symbol = [
+      let moves = [
         [1, 0],
         [-1, 0],
         [0, -1],
@@ -377,28 +464,16 @@ function Board({trialBoardState, setTrialBoardState}) {
         [-1, -1],
         [1, -1]
       ]
-      for (let j = 0; j < symbol.length; j++) {
-        let currentSymbol = symbol[j]
 
-        for (let i = 1; i < 2; i++) {
-            let newRow = coordinate[0] + (i*currentSymbol[0])
-            let newCol = coordinate[1] + (i*currentSymbol[1])
-           
-            if (!(typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined')) {
-              break
-            }
-
-            if (trialBoardState[newRow][newCol]) {
-              if (samePiece(newRow, newCol)) {
-                continue
-              }
-            }
-            availableMoves.push([newRow, newCol])
-          }
-          
+      for (let i = 0; i < moves.length; i++) {
+        let add = true
+        let move = moves[i]
+        add = addMove(coordinate, move)        
       }
-    
-      availableMovesArray = availableMoves
+    }
+
+    if (attack) {
+      return attackMovesArray
     }
 
     return availableMovesArray
@@ -447,9 +522,7 @@ function Board({trialBoardState, setTrialBoardState}) {
   return color_arr
 }
 
-  //Function to return a List of available moves when a piece is clicked
-  //This function needs to only return the array of available moves because that does not depend on the coordinate of the second click
-
+  //Return if the Move at the current coordinate is Valid
   function isValidMove(coordinate) {
     
     let isValid = true
@@ -461,22 +534,27 @@ function Board({trialBoardState, setTrialBoardState}) {
     }
 
     //Check if a coordinate is in a list of available moves
-    function coordinateInAvaliableMoves(coordinate, availableMoves) {
-      isValid = availableMoves.some((a) => a.every((v, i) => v === coordinate[i])); // if it works it works    
-    }
-
     availableMoves = currentAvailableMoves(firstClick)
-    coordinateInAvaliableMoves(coordinate, availableMoves)
+    isValid = coordinateInAvaliableMoves(coordinate, availableMoves)
 
       return isValid;
-    }
+}
 
-  
   //Update board state
   function updateBoard(position) {
 
     let coordinate = [Math.floor(position/8), position%8]
-    
+
+    function updateKingPositions() {
+      //White king
+      if (piece_name === "♔") {
+        setWhiteKing({position: [coordinate[0], coordinate[1]], hasMoved: true, isChecked: false, castleSquaresAttacked: false})
+      }
+      //Black King
+      if (piece_name === "♚") {
+        setBlackKing({position: [coordinate[0], coordinate[1]], hasMoved: true, isChecked: false, castleSquaresAttacked: false})
+      }
+    }
     
     // Checks if firstClick is empty 
     if (!firstClick) {
@@ -489,23 +567,20 @@ function Board({trialBoardState, setTrialBoardState}) {
       return
     }
 
+    //If the move is valid Modify board state
     let piece_name = trialBoardState[firstClick[0]][firstClick[1]]
-
-
-
+    
     if (isValidMove(coordinate, piece_name)) {
       
       setTrialBoardState((prev) =>{
+        //duplicate current board state onto ChangeBoardState
         let changeBoardState = structuredClone(prev)
 
+        //If the current coordinate was an enpassant move
         if ((coordinate[0] === enpassant.move[0]) && (coordinate[1] === enpassant.move[1])) {
-          console.log('board should be changed')
-          console.log([enpassant.capture[0], enpassant.capture[1]])
 
           let currentRow = enpassant.capture[0]
           let currentCol = enpassant.capture[1]
-
-          console.log(currentRow, currentCol)
 
           changeBoardState[coordinate[0]][coordinate[1]] = piece_name
           changeBoardState[firstClick[0]][firstClick[1]] = null
@@ -524,6 +599,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         
         setisWhiteTurn(!isWhiteTurn)
         setMoveCount(moveCount+1)
+        updateKingPositions()
 
         setColors(convertCoordinates(null))
         setFirstClick(null)
@@ -535,12 +611,7 @@ function Board({trialBoardState, setTrialBoardState}) {
       setColors(convertCoordinates(null))
       setFirstClick(null)
     }
-
-
-  
-  }
-
-
+}
 
   return (
     <>
