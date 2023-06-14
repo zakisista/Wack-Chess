@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { CurrentPiece } from "./CurrentPiece.jsx"
+
 
 
 function App() {
@@ -155,6 +157,10 @@ function Board({trialBoardState, setTrialBoardState}) {
     let pieceIsWhite = true
     let piece = null
 
+    let myPiece = new CurrentPiece(coordinate, trialBoardState)
+    console.log(myPiece.piece)
+    console.log(myPiece.color)
+
     if (Array.isArray(coordinate)) {
       piece = trialBoardState[coordinate[0]][coordinate[1]]
     }
@@ -190,7 +196,6 @@ function Board({trialBoardState, setTrialBoardState}) {
         //if move exists
         if (coordinateExists(newRow, newCol)) {
           attackMovesArray.push([newRow, newCol]) //For the attack map
-          console.log([newRow, newCol], samePieceExists)
 
           if (trialBoardState[newRow][newCol] && samePiece(newRow, newCol)) {
             add = false
@@ -380,7 +385,7 @@ function Board({trialBoardState, setTrialBoardState}) {
       for (let i = 0; i < moves.length; i++) {
           let add = true
           let move = moves[i]
-          add = addMove(coordinate, move)        
+          add = addMove(coordinate, move)       
       }
     }
     //Bishop
