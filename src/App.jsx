@@ -67,6 +67,10 @@ function Board({trialBoardState, setTrialBoardState}) {
   const [whiteAttackMap, setWhiteAttackMap] = useState([])
   const [blackAttackMap, setBlackAttackMap] = useState([])
 
+  useEffect(() => {
+    console.log(whiteAttackMap)
+  }, [whiteAttackMap, blackAttackMap])
+
 
   // useEffect(() => {
   //   setAttackMap()
@@ -99,7 +103,7 @@ function Board({trialBoardState, setTrialBoardState}) {
   }
 
   //Spagetti spagetti spagetti
-  function setAttackMap() {
+  function setAttackMap(changeBoardState) {
     let blackPieces = ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
     let whitePieces = ["♙","♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
 
@@ -109,13 +113,13 @@ function Board({trialBoardState, setTrialBoardState}) {
     let whitePieceCoordinates = []
 
 
-    //Fetch coordinates of white and black pieces
-    for (let row = 0; row < trialBoardState.length; row++) {
-      for (let col = 0; col < trialBoardState[0].length; col++) {
-        if (blackPieces.includes(trialBoardState[row][col])) {
+    //Fetch coordinates of white and black pieces in the current boardstate
+    for (let row = 0; row < changeBoardState.length; row++) {
+      for (let col = 0; col < changeBoardState[0].length; col++) {
+        if (blackPieces.includes(changeBoardState[row][col])) {
           blackPieceCoordinates.push([row, col])
         }
-        if (whitePieces.includes(trialBoardState[row][col])) {
+        if (whitePieces.includes(changeBoardState[row][col])) {
           whitePieceCoordinates.push([row, col])
         }
       }
@@ -124,7 +128,7 @@ function Board({trialBoardState, setTrialBoardState}) {
     //Creating black Attack Map
     for (let i = 0; i < blackPieceCoordinates.length; i++) {
       let current_coordinate = blackPieceCoordinates[i]
-      let current_list = currentAvailableMoves(current_coordinate, true) //Attack moves "true"
+      let current_list = currentAvailableMoves(current_coordinate, true, changeBoardState) //Attack moves "true"
       if (current_list) {
         for (let j = 0; j < current_list.length; j++) {
           blackAttackMap.push(current_list[j])
@@ -135,7 +139,7 @@ function Board({trialBoardState, setTrialBoardState}) {
     //White Attack Map
     for (let i = 0; i < whitePieceCoordinates.length; i++) {
       let current_coordinate = whitePieceCoordinates[i]
-      let current_list = currentAvailableMoves(current_coordinate, true)
+      let current_list = currentAvailableMoves(current_coordinate, true, changeBoardState)
       if (current_list) {
         for (let j = 0; j < current_list.length; j++) {
           whiteAttackMap.push(current_list[j])
@@ -143,12 +147,15 @@ function Board({trialBoardState, setTrialBoardState}) {
       }
     }
 
-    setBlackAttackMap(blackAttackMap)
-    setWhiteAttackMap(whiteAttackMap)
+    let uniqueBlackAttackMap = Array.from(new Set(structuredClone(blackAttackMap).map(JSON.stringify)), JSON.parse)
+    let uniqueWhiteAttackMap = Array.from(new Set(structuredClone(whiteAttackMap).map(JSON.stringify)), JSON.parse)
+
+    setBlackAttackMap(uniqueBlackAttackMap)
+    setWhiteAttackMap(uniqueWhiteAttackMap)
   }
   
   //Return List of available moves
-  function currentAvailableMoves(coordinate, attack) {
+  function currentAvailableMoves(coordinate, attack, boardState = trialBoardState) {
     let blackPieces = ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
     let whitePieces = ["♙", "♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
 
@@ -157,8 +164,9 @@ function Board({trialBoardState, setTrialBoardState}) {
     let pieceIsWhite = true
     let piece = null
 
+
     if (Array.isArray(coordinate)) {
-      piece = trialBoardState[coordinate[0]][coordinate[1]]
+      piece = boardState[coordinate[0]][coordinate[1]]
     }
     //Is current piece white
     if (blackPieces.includes(piece)) {
@@ -167,13 +175,13 @@ function Board({trialBoardState, setTrialBoardState}) {
 
     function samePiece(current_row, current_col) {
       //This function works
-      let newPiece = trialBoardState[current_row][current_col]
+      let newPiece = boardState[current_row][current_col]
       let newPieceIsWhite = whitePieces.includes(newPiece) 
       return(newPieceIsWhite === pieceIsWhite)
     }
     
     function coordinateExists(newRow, newCol) {
-      let exists = typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined'
+      let exists = typeof boardState[newRow] !== 'undefined' && typeof boardState[newRow][newCol] !== 'undefined'
       return exists
     }
     //appends attackMovesArray and availableMoves conditionally
@@ -196,7 +204,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         //If the move is NOT an attack move
         if (move[1]**2 === 0) {
           //if a piece exists on the square
-          if (trialBoardState[newRow][newCol]) {
+          if (boardState[newRow][newCol]) {
             add = false
           }
         }
@@ -204,7 +212,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         if (move[1]**2 === 1) {
           attackMovesArray.push([newRow, newCol]) //Attack map
           //if the square is empty or contains a piece of the same color
-          if (!trialBoardState[newRow][newCol] || (trialBoardState[newRow][newCol] && samePiece(newRow, newCol))) {
+          if (!boardState[newRow][newCol] || (boardState[newRow][newCol] && samePiece(newRow, newCol))) {
             add = false
           }
         }
@@ -216,7 +224,7 @@ function Board({trialBoardState, setTrialBoardState}) {
       }
 
       //If You want the itteration to stop after a piece has blocked the path
-      if (trialBoardState[newRow][newCol]) {
+      if (boardState[newRow][newCol]) {
         add = false
         if (!samePiece(newRow, newCol)) {
           availableMovesArray.push([newRow, newCol])
@@ -279,7 +287,7 @@ function Board({trialBoardState, setTrialBoardState}) {
 
         //We don't have to check if the square that the piece is moving to is empty because the black piece could not have moved there otherweise
 
-        if (trialBoardState[pawnLeft[0]][pawnLeft[1]] === ("♟")) {
+        if (boardState[pawnLeft[0]][pawnLeft[1]] === ("♟")) {
           if (previousBoardState[moveCount - 1][1][pawnLeft[1]] === ("♟")) {
 
             let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
@@ -293,7 +301,7 @@ function Board({trialBoardState, setTrialBoardState}) {
           }
         }
         
-        if (trialBoardState[pawnRight[0]][pawnRight[1]] === ("♟")) {
+        if (boardState[pawnRight[0]][pawnRight[1]] === ("♟")) {
           if (previousBoardState[moveCount - 1][1][pawnRight[1]] === ("♟")) {
 
             let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
@@ -313,7 +321,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         let pawnLeft = [coordinate[0], coordinate[1] - 1]
         let pawnRight = [coordinate[0], coordinate[1] + 1]
 
-        if (trialBoardState[pawnLeft[0]][pawnLeft[1]] === ("♙")) {
+        if (boardState[pawnLeft[0]][pawnLeft[1]] === ("♙")) {
           if (previousBoardState[moveCount - 1][6][pawnLeft[1]] === ("♙")) {
             let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
             availableMovesArray.push(captureMove)
@@ -326,7 +334,7 @@ function Board({trialBoardState, setTrialBoardState}) {
           }
         }
         
-        if (trialBoardState[pawnRight[0]][pawnRight[1]] === ("♙")) {
+        if (boardState[pawnRight[0]][pawnRight[1]] === ("♙")) {
           if (previousBoardState[moveCount - 1][6][pawnRight[1]] === ("♙")) {
 
             let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
@@ -535,6 +543,8 @@ function Board({trialBoardState, setTrialBoardState}) {
         setBlackKing({position: [coordinate[0], coordinate[1]], hasMoved: true, isChecked: false, castleSquaresAttacked: false})
       }
     }
+
+    setAttackMap(trialBoardState)
     
     // Checks if firstClick is empty 
     if (!firstClick) {
@@ -552,40 +562,40 @@ function Board({trialBoardState, setTrialBoardState}) {
     
     if (isValidMove(coordinate, piece_name)) {
       
-      setTrialBoardState((prev) =>{
-        //duplicate current board state onto ChangeBoardState
-        let changeBoardState = structuredClone(prev)
+      //duplicate current board state onto ChangeBoardState
+      let changeBoardState = structuredClone(trialBoardState)
 
-        //If the current coordinate was an enpassant move
-        if ((coordinate[0] === enpassant.move[0]) && (coordinate[1] === enpassant.move[1])) {
+      //If the current coordinate was an enpassant move
+      if ((coordinate[0] === enpassant.move[0]) && (coordinate[1] === enpassant.move[1])) {
 
-          let currentRow = enpassant.capture[0]
-          let currentCol = enpassant.capture[1]
-
-          changeBoardState[coordinate[0]][coordinate[1]] = piece_name
-          changeBoardState[firstClick[0]][firstClick[1]] = null
-
-          changeBoardState[currentRow][currentCol] = null
-          
-          setEnpassant({capture: [null, null], count: null, move: [null, null]})
-          setColors(convertCoordinates(null))
-          setFirstClick(null)
-
-          return changeBoardState
-        }
+        let currentRow = enpassant.capture[0]
+        let currentCol = enpassant.capture[1]
 
         changeBoardState[coordinate[0]][coordinate[1]] = piece_name
         changeBoardState[firstClick[0]][firstClick[1]] = null
-        
-        setisWhiteTurn(!isWhiteTurn)
-        setMoveCount(moveCount+1)
-        updateKingPositions()
 
+        changeBoardState[currentRow][currentCol] = null
+        
+        setEnpassant({capture: [null, null], count: null, move: [null, null]})
         setColors(convertCoordinates(null))
         setFirstClick(null)
 
         return changeBoardState
-      })
+      }
+
+      changeBoardState[coordinate[0]][coordinate[1]] = piece_name
+      changeBoardState[firstClick[0]][firstClick[1]] = null
+      
+      setisWhiteTurn(!isWhiteTurn)
+      setMoveCount(moveCount+1)
+      updateKingPositions()
+
+      setColors(convertCoordinates(null))
+      setFirstClick(null)
+
+      setAttackMap(changeBoardState)
+      setTrialBoardState(changeBoardState)
+      
 
     } else {
       setColors(convertCoordinates(null))
