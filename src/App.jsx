@@ -20,7 +20,7 @@ function App() {
   
   return (
     <>
-      <div className='flex justify-center mt-32 bg-gray-200'>
+      <div className='flex justify-center mt-32'>
         <Board trialBoardState={trialBoardState} setTrialBoardState={setTrialBoardState}/>
       </div>
     </>
@@ -157,10 +157,6 @@ function Board({trialBoardState, setTrialBoardState}) {
     let pieceIsWhite = true
     let piece = null
 
-    let myPiece = new CurrentPiece(coordinate, trialBoardState)
-    console.log(myPiece.piece)
-    console.log(myPiece.color)
-
     if (Array.isArray(coordinate)) {
       piece = trialBoardState[coordinate[0]][coordinate[1]]
     }
@@ -175,70 +171,75 @@ function Board({trialBoardState, setTrialBoardState}) {
       let newPieceIsWhite = whitePieces.includes(newPiece) 
       return(newPieceIsWhite === pieceIsWhite)
     }
+    
     function coordinateExists(newRow, newCol) {
       let exists = typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined'
       return exists
     }
     //appends attackMovesArray and availableMoves conditionally
-    function addMove(coordinate, move, scale, stopIfPiece) {
+    function addMove(move, scale) {
       let add = true
       if (!scale) {
         scale = 1
       }
       let scaleLength = structuredClone(scale)
+      let newRow = coordinate[0] + scaleLength*move[0]
+      let newCol = coordinate[1] + scaleLength*move[1]
 
-      if (stopIfPiece === true) {
-        let newRow = coordinate[0] + scaleLength*move[0]
-        let newCol = coordinate[1] + scaleLength*move[1]
-        let samePieceExists = false
+      if (!coordinateExists(newRow, newCol)) {
+        return false
+      }
 
-        
-        //if move exists
-        if (coordinateExists(newRow, newCol)) {
-          attackMovesArray.push([newRow, newCol]) //For the attack map
+      //This will have it's own return function to make things easier for now
+      if (piece == "♙" || piece == "♟") {
 
-          if (trialBoardState[newRow][newCol] && samePiece(newRow, newCol)) {
+        //If the move is NOT an attack move
+        if (move[1]**2 === 0) {
+          //if a piece exists on the square
+          if (trialBoardState[newRow][newCol]) {
             add = false
-            return add
           }
-          if (trialBoardState[newRow][newCol] && (!samePiece(newRow, newCol))) {
-            
-            availableMovesArray.push([newRow, newCol])
-            add = false
-            return add
-          }
-
-          availableMovesArray.push([newRow, newCol])
         }
-        if(!coordinateExists(newRow, newCol)) {
-          add = false
-          return false
+
+        if (move[1]**2 === 1) {
+          attackMovesArray.push([newRow, newCol]) //Attack map
+          //if the square is empty or contains a piece of the same color
+          if (!trialBoardState[newRow][newCol] || (trialBoardState[newRow][newCol] && samePiece(newRow, newCol))) {
+            add = false
+          }
+        }
+
+        if (add) {
+          availableMovesArray.push([newRow, newCol])
         }
         return add
       }
 
-      let newRow = coordinate[0] + scaleLength*move[0]
-      let newCol = coordinate[1] + scaleLength*move[1]
-      //if move exists
-      if (coordinateExists(newRow, newCol)) {
-        attackMovesArray.push([newRow, newCol]) //For the attack map
-        //if that square contains a piece of the same color
-        if (trialBoardState[newRow][newCol] && samePiece(newRow, newCol)) {
-          return
+      //If You want the itteration to stop after a piece has blocked the path
+      if (trialBoardState[newRow][newCol]) {
+        add = false
+        if (!samePiece(newRow, newCol)) {
+          availableMovesArray.push([newRow, newCol])
         }
+      }
+
+      if (add) {
         availableMovesArray.push([newRow, newCol])
       }
+      attackMovesArray.push([newRow, newCol]) //Attack map
+
+
       return add
-      //For pieces that need to stop iterating if a piece exists
-
-
     }
     
     //Pieces
     //White Pawn
     if (piece == "♙" || piece == "♟") {
-      let availableMoves = []
       let multiplier = pieceIsWhite ? -1 : 1
+
+      let defaultMove = [
+        [1*multiplier, 0]
+      ]
 
       let moves = [
         [1*multiplier, 0],
@@ -252,46 +253,24 @@ function Board({trialBoardState, setTrialBoardState}) {
       
       //Add Capture Moves
       for (let i = 0; i < captureMoves.length; i++) {
-
         let captureMove = captureMoves[i]
-        let newRow = coordinate[0] + captureMove[0]
-        let newCol = coordinate[1] + captureMove[1]
-
-        if (typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined') {
-            attackMovesArray.push([newRow, newCol]) //For the attack map
-          if (trialBoardState[newRow][newCol]) {
-            if (!samePiece(newRow, newCol)) {
-              availableMoves.push([newRow, newCol])
-            }
-          }
-        }
+        //If there is a piece
+        addMove(captureMove)
       }
-
-
+      
       //The first move
       if ((coordinate[0] == 6 && pieceIsWhite) || coordinate[0] == 1 && !pieceIsWhite) {
-      
         //Add normal Moves
         for (let i = 0; i < moves.length; i++) {
           let move = moves[i]
-          let newRow = coordinate[0] + move[0]
-          let newCol = coordinate[1] + move[1]
-
-          if (trialBoardState[newRow][newCol]) {
+          let add = addMove(move)   
+          if (add === false) {
             break
           }
-          availableMoves.push([newRow, newCol])
-            
-          }
-        } else {
-          let newRow = coordinate[0] + 1*multiplier
-          let newCol = coordinate[1]
-          if (!trialBoardState[newRow][newCol]) {
-            availableMoves.push([newRow, newCol])
-          }
         }
-      
-      
+      } else {
+        addMove(defaultMove[0])
+      }     
       
       //En passant
       if (coordinate[0] == 3 && pieceIsWhite) {
@@ -304,7 +283,7 @@ function Board({trialBoardState, setTrialBoardState}) {
           if (previousBoardState[moveCount - 1][1][pawnLeft[1]] === ("♟")) {
 
             let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
-            availableMoves.push(captureMove)
+            availableMovesArray.push(captureMove)
 
             let pawnToCapture = [pawnLeft[0], pawnLeft[1]]
             setEnpassant(() => {
@@ -318,7 +297,7 @@ function Board({trialBoardState, setTrialBoardState}) {
           if (previousBoardState[moveCount - 1][1][pawnRight[1]] === ("♟")) {
 
             let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
-            availableMoves.push(captureMove)
+            availableMovesArray.push(captureMove)
 
             let pawnToCapture = [pawnRight[0], pawnRight[1]]
             setEnpassant(() => {
@@ -337,7 +316,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         if (trialBoardState[pawnLeft[0]][pawnLeft[1]] === ("♙")) {
           if (previousBoardState[moveCount - 1][6][pawnLeft[1]] === ("♙")) {
             let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
-            availableMoves.push(captureMove)
+            availableMovesArray.push(captureMove)
 
             let pawnToCapture = [pawnLeft[0], pawnLeft[1]]
             setEnpassant(() => {
@@ -351,7 +330,7 @@ function Board({trialBoardState, setTrialBoardState}) {
           if (previousBoardState[moveCount - 1][6][pawnRight[1]] === ("♙")) {
 
             let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
-            availableMoves.push(captureMove)
+            availableMovesArray.push(captureMove)
 
             let pawnToCapture = [pawnRight[0], pawnRight[1]]
             setEnpassant(() => {
@@ -363,10 +342,8 @@ function Board({trialBoardState, setTrialBoardState}) {
       
       }
 
-
-        availableMovesArray = availableMoves
         
-        //Pawn capturing
+    
 
     }
     //Knight
@@ -383,9 +360,8 @@ function Board({trialBoardState, setTrialBoardState}) {
       ]
 
       for (let i = 0; i < moves.length; i++) {
-          let add = true
           let move = moves[i]
-          add = addMove(coordinate, move)       
+          addMove(move)   
       }
     }
     //Bishop
@@ -402,7 +378,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         let currentSymbol = symbol[j]
         let add = true
         for (let i = 1; i < 9; i++) {
-           add = addMove(coordinate, currentSymbol, i, true)
+           add = addMove(currentSymbol, i)
            if (add === false) {
             add = true
             break
@@ -423,7 +399,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         let currentSymbol = symbol[j]
         let add = true
         for (let i = 1; i < 9; i++) {
-           add = addMove(coordinate, currentSymbol, i, true)
+           add = addMove(currentSymbol, i)
            if (add === false) {
             add = true
             break
@@ -449,7 +425,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         let currentSymbol = symbol[j]
         let add = true
         for (let i = 1; i < 9; i++) {
-           add = addMove(coordinate, currentSymbol, i, true)
+           add = addMove(currentSymbol, i)
            if (add === false) {
             add = true
             break
@@ -471,9 +447,8 @@ function Board({trialBoardState, setTrialBoardState}) {
       ]
 
       for (let i = 0; i < moves.length; i++) {
-        let add = true
         let move = moves[i]
-        add = addMove(coordinate, move)        
+        addMove(move)        
       }
     }
 

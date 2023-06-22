@@ -20,6 +20,7 @@ class CurrentPiece {
 
       this.availableMovesArray = []
       this.attackMovesArray = []
+      this.trialBoardState = trialBoardState
 
     }
   
@@ -30,7 +31,7 @@ class CurrentPiece {
     }
   
     coordinateExists(newRow, newCol) {
-      let exists = typeof trialBoardState[newRow] !== 'undefined' && typeof trialBoardState[newRow][newCol] !== 'undefined'
+      let exists = typeof this.trialBoardState[newRow] !== 'undefined' && typeof this.trialBoardState[newRow][newCol] !== 'undefined'
       return exists
     }
   
@@ -52,14 +53,14 @@ class CurrentPiece {
           console.log([newRow, newCol], samePieceExists)
   
           if (
-            trialBoardState[newRow][newCol] &&
+            this.trialBoardState[newRow][newCol] &&
             this.samePiece(newRow, newCol)
           ) {
             add = false
             return add
           }
           if (
-            trialBoardState[newRow][newCol] &&
+            this.trialBoardState[newRow][newCol] &&
             !this.samePiece(newRow, newCol)
           ) {
             this.availableMovesArray.push([newRow, newCol])
