@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { CurrentPiece } from "./CurrentPiece.jsx"
 
 
 
@@ -67,14 +66,19 @@ function Board({trialBoardState, setTrialBoardState}) {
   const [whiteAttackMap, setWhiteAttackMap] = useState([])
   const [blackAttackMap, setBlackAttackMap] = useState([])
 
-  useEffect(() => {
-    console.log(whiteAttackMap)
-  }, [whiteAttackMap, blackAttackMap])
+  const [pawnToChange, setPawnToChange] = useState({pawnToChange: false, coordinate: [], previousCoordinate: []})
 
+  const [whiteCanCastle, setWhiteCanCastle] = useState({kingMoved: false, queenRookMoved: false, kingRookMoved: false, canCastle: false})
+  const [blackCanCastle, setBlackCanCastle] = useState({kingMoved: false, queenRookMoved: false, kingRookMoved: false, canCastle: false}) //If king moved or if either rook moved
 
-  // useEffect(() => {
-  //   setAttackMap()
-  // }, [firstClick])
+  let changePawnColors = ["bg-gray-400", "bg-gray-100", "bg-gray-400", "bg-gray-100"]
+  let pawnBlackPieces = ["♜", "♞", "♝", "♛"]
+  let pawnWhitePieces = ["♖", "♘", "♗", "♕"]
+
+  
+
+ 
+
 
   useEffect(() => {
     if (moveCount === 0) {
@@ -87,22 +91,24 @@ function Board({trialBoardState, setTrialBoardState}) {
     })
   }, [moveCount])
 
-  function kingUnderCheck() {
-    if (coordinateInAvaliableMoves(whiteKing.position, blackAttackMap)) {
-      console.log("white King is under check")
-    }
-    if (coordinateInAvaliableMoves(blackKing.position, whiteAttackMap)) {
-      console.log("Black King is under check")
-    }
-  }
-
+  
   //Check if a coordinate is in a list of available moves
   function coordinateInAvaliableMoves(coordinate, availableMoves) {
     let value = availableMoves.some((a) => a.every((v, i) => v === coordinate[i])); // if it works it works   
     return value 
   }
+  
+  function kingUnderCheck(currentBlackAttackMap, currentWhiteAttackMap) {
+    if (coordinateInAvaliableMoves(whiteKing.position, currentBlackAttackMap)) {
+      console.log("white King is under check")
+    }
+    if (coordinateInAvaliableMoves(blackKing.position, currentWhiteAttackMap)) {
+      console.log("Black King is under check")
+    }
+  }
 
-  //Spagetti spagetti spagetti
+
+  //Spagetti spagetti spagetti... Also this checks if a king is under attack
   function setAttackMap(changeBoardState) {
     let blackPieces = ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
     let whitePieces = ["♙","♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
@@ -111,6 +117,9 @@ function Board({trialBoardState, setTrialBoardState}) {
     let whiteAttackMap = []
     let blackPieceCoordinates = []
     let whitePieceCoordinates = []
+
+    let piecesAttackingBlackKing = {}
+    let piecesAttackingWhiteKing = {}
 
 
     //Fetch coordinates of white and black pieces in the current boardstate
@@ -128,8 +137,14 @@ function Board({trialBoardState, setTrialBoardState}) {
     //Creating black Attack Map
     for (let i = 0; i < blackPieceCoordinates.length; i++) {
       let current_coordinate = blackPieceCoordinates[i]
+      let current_piece = changeBoardState[current_coordinate[0]][current_coordinate[1]]
       let current_list = currentAvailableMoves(current_coordinate, true, changeBoardState) //Attack moves "true"
+      
       if (current_list) {
+        //If the white king position exists in the current attack moves, store the piece attacking the king
+        if (coordinateInAvaliableMoves(whiteKing.position, current_list)) {
+          piecesAttackingWhiteKing[current_coordinate] = current_piece
+        }
         for (let j = 0; j < current_list.length; j++) {
           blackAttackMap.push(current_list[j])
         }
@@ -139,21 +154,38 @@ function Board({trialBoardState, setTrialBoardState}) {
     //White Attack Map
     for (let i = 0; i < whitePieceCoordinates.length; i++) {
       let current_coordinate = whitePieceCoordinates[i]
+      let current_piece = changeBoardState[current_coordinate[0]][current_coordinate[1]]
       let current_list = currentAvailableMoves(current_coordinate, true, changeBoardState)
+
+
       if (current_list) {
+
+        if (coordinateInAvaliableMoves(blackKing.position, current_list)) {
+          piecesAttackingBlackKing[current_coordinate] = current_piece
+        }
         for (let j = 0; j < current_list.length; j++) {
           whiteAttackMap.push(current_list[j])
         }
       }
     }
 
+    //Display pieces attacking king if there is a piece attackign the king
+    if ((Object.entries(piecesAttackingWhiteKing).length != 0) || (Object.entries(piecesAttackingBlackKing).length != 0)) {
+      
+      console.log("pieces attacking kings")
+      console.log(piecesAttackingWhiteKing)
+      console.log(piecesAttackingBlackKing)
+    }
+
     let uniqueBlackAttackMap = Array.from(new Set(structuredClone(blackAttackMap).map(JSON.stringify)), JSON.parse)
     let uniqueWhiteAttackMap = Array.from(new Set(structuredClone(whiteAttackMap).map(JSON.stringify)), JSON.parse)
+
+    kingUnderCheck(uniqueBlackAttackMap, uniqueWhiteAttackMap)
 
     setBlackAttackMap(uniqueBlackAttackMap)
     setWhiteAttackMap(uniqueWhiteAttackMap)
   }
-  
+
   //Return List of available moves
   function currentAvailableMoves(coordinate, attack, boardState = trialBoardState) {
     let blackPieces = ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
@@ -164,7 +196,7 @@ function Board({trialBoardState, setTrialBoardState}) {
     let pieceIsWhite = true
     let piece = null
 
-
+    //if the square contains a piece
     if (Array.isArray(coordinate)) {
       piece = boardState[coordinate[0]][coordinate[1]]
     }
@@ -458,6 +490,108 @@ function Board({trialBoardState, setTrialBoardState}) {
         let move = moves[i]
         addMove(move)        
       }
+      
+      //This adds the castle moves, but does not contribute to the attackMovesArray or the attackMap
+      if (!attack) {
+        let thisAttackMap = pieceIsWhite ? structuredClone(blackAttackMap) : structuredClone(whiteAttackMap)
+        console.log(thisAttackMap)
+        let movesToRemove = []
+        
+        //Adds moves which are in the attack map to the list of moves to remove
+        for (let i = 0; i<availableMovesArray.length; i++) {
+          let current_available_move = availableMovesArray[i]
+          
+          if (coordinateInAvaliableMoves(current_available_move, thisAttackMap)) {
+            movesToRemove.push(current_available_move)
+          }
+        }
+        //Removes those moves
+        availableMovesArray = availableMovesArray.filter((e) => {
+          if (!movesToRemove.includes(e)) {
+            return e
+          }
+        })
+        //-------------------------
+
+        //Check if the king can castle, if the king can castle, add that to the available moves
+        let canQueenCastle = true
+        let canKingCastle = true
+ 
+        let thisKingCastle = pieceIsWhite ? structuredClone(whiteCanCastle) : structuredClone(blackCanCastle)
+        let row = pieceIsWhite ? 7 : 0
+        let castleMoves = pieceIsWhite ? [[7, 2], [7, 6]] : [[0, 2], [0, 6]]
+        let queenSquaresInTheWay = pieceIsWhite ? [[7, 1], [7, 2], [7, 3]] : [[0, 1], [0, 2], [0, 3]]
+        let kingSquaresInTheWay = pieceIsWhite ? [[7, 5], [7, 6]] : [[0, 5], [0, 6]]
+
+        // if any of the castle moves are attacked
+        let attackMoves = thisAttackMap.filter((attackMove) => {
+          if (attackMove[0] == row) {
+            return attackMove
+          }
+        }) //List of all the attack moves on the first row of whoever's turn it is
+
+        //Which side and if king is attacked
+        for (let i = 0; i < attackMoves.length; i++) {
+          let currentAttackMove = attackMoves[i]
+          
+          if (currentAttackMove[1] > 4) {
+            canKingCastle = false
+          }
+          if (currentAttackMove[1] < 4) {
+            canQueenCastle = false
+          }
+          if (currentAttackMove[1] == 4) {
+            canQueenCastle = false
+            canKingCastle = false
+          }
+        }
+
+        //Are there pieces between the squares
+        for (let i = 0; i < queenSquaresInTheWay.length; i++) {
+          let queenSquare = queenSquaresInTheWay[i]
+          let row = queenSquare[0]
+          let col = queenSquare[1]
+          if (boardState[row][col]) {
+            canQueenCastle = false
+            break
+          }
+        }
+        for (let i = 0; i < kingSquaresInTheWay.length; i++) {
+          let kingSquare = kingSquaresInTheWay[i]
+          let row = kingSquare[0]
+          let col = kingSquare[1]
+          if (boardState[row][col]) {
+            canKingCastle = false
+            break
+          }
+        }
+
+        //If the castle pieces have moved
+        if (thisKingCastle.kingMoved == true) {
+          canQueenCastle = false
+          canKingCastle = false
+        } 
+        if (thisKingCastle.queenRookMoved == true) {
+          canQueenCastle = false
+        }       
+        if (thisKingCastle.kingRookMoved == true) {
+          canKingCastle = false 
+        }
+        // At this point we know:
+          // If either the king side or queen side is attacked
+          // If the king is attacked
+          // If there is a piece contained in any of the squares between
+          // If any of the pieces involved in castling have moved
+        let queenCastleMoves = structuredClone(castleMoves[0])
+        let kingCastleMoves = structuredClone(castleMoves[1])
+
+        if (canKingCastle == true) {
+          availableMovesArray.push([kingCastleMoves[0], kingCastleMoves[1]])
+        }
+        if (canQueenCastle == true) {
+          availableMovesArray.push([queenCastleMoves[0], queenCastleMoves[1]])
+        }
+      }
     }
 
     if (attack) {
@@ -516,6 +650,7 @@ function Board({trialBoardState, setTrialBoardState}) {
     let isValid = true
     let availableMoves = []
 
+
     if ((coordinate[0] === firstClick[0]) && (coordinate[1] === firstClick[1])) {
       isValid = false
       return isValid;
@@ -525,14 +660,51 @@ function Board({trialBoardState, setTrialBoardState}) {
     availableMoves = currentAvailableMoves(firstClick)
     isValid = coordinateInAvaliableMoves(coordinate, availableMoves)
 
-      return isValid;
+    return isValid;
 }
+  //When one of the pieces is clicked, use the state of the pawnToChange object to make the changes
+  function changePawnClick(id) {
+    if (pawnToChange.pawnToChange === false) {
+      return
+    }
+    let piece = isWhiteTurn ? pawnWhitePieces[id] : pawnBlackPieces[id]
+    let initialCoordinate = structuredClone(pawnToChange.previousCoordinate)
+    let finalCoordinate = structuredClone(pawnToChange.coordinate)
+    let changeBoardState = structuredClone(trialBoardState)
+
+
+    //Moves the pawn with the new piece in it's place
+    changeBoardState[initialCoordinate[0]][initialCoordinate[1]] = null
+    changeBoardState[finalCoordinate[0]][finalCoordinate[1]] = piece
+
+    setPawnToChange({pawnToChange: false, coordinate: [], previousCoordinate: []})
+
+    setisWhiteTurn(!isWhiteTurn)
+    setMoveCount(moveCount+1)
+    
+    setColors(convertCoordinates(null))
+    setFirstClick(null)
+
+    setAttackMap(changeBoardState)
+    setTrialBoardState(changeBoardState)
+
+  }
 
   //Update board state
   function updateBoard(position) {
 
+    //The position is the linear index of the square
     let coordinate = [Math.floor(position/8), position%8]
 
+    let blackPieces = ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
+
+    //If there is a pawn To change, don't do anything...
+    if (pawnToChange.pawnToChange) {
+      console.log("piece to be selected")
+      return
+    }
+
+    
     function updateKingPositions() {
       //White king
       if (piece_name === "♔") {
@@ -544,32 +716,53 @@ function Board({trialBoardState, setTrialBoardState}) {
       }
     }
 
+
     setAttackMap(trialBoardState)
     
-    // Checks if firstClick is empty 
+    // Adds first click
     if (!firstClick) {
+      //If there is a piece
       if (trialBoardState[coordinate[0]][coordinate[1]]) {
-
-        setFirstClick(coordinate)
-        convertCoordinates(currentAvailableMoves(coordinate))   
+        //Checks color of piece
+        
+        let pieceIsWhite = true
+        if (blackPieces.includes(trialBoardState[coordinate[0]][coordinate[1]])) {
+          pieceIsWhite = false
+        }
+        //If the color of the piece matches the turn
+        if (isWhiteTurn === pieceIsWhite) {
+          //Set the first click and display the available moves
+          setFirstClick(coordinate)
+          convertCoordinates(currentAvailableMoves(coordinate))   
+        }
         return
       } 
       return
     }
 
-    //If the move is valid Modify board state
+    let pieceIsWhite = true
+    if (blackPieces.includes(trialBoardState[coordinate[0]][coordinate[1]])) {
+      pieceIsWhite = false
+    }
     let piece_name = trialBoardState[firstClick[0]][firstClick[1]]
-    
+    //duplicate current board state onto ChangeBoardState
+    let changeBoardState = structuredClone(trialBoardState)
+
+    function movePiece(piece, newSquare, oldSquare) {
+      changeBoardState[newSquare[0]][newSquare[1]] = piece
+      changeBoardState[oldSquare[0]][oldSquare[1]] = null
+    }
+
+    //If the move is valid Modify board state
     if (isValidMove(coordinate, piece_name)) {
-      
-      //duplicate current board state onto ChangeBoardState
-      let changeBoardState = structuredClone(trialBoardState)
 
       //If the current coordinate was an enpassant move
       if ((coordinate[0] === enpassant.move[0]) && (coordinate[1] === enpassant.move[1])) {
 
+
         let currentRow = enpassant.capture[0]
         let currentCol = enpassant.capture[1]
+
 
         changeBoardState[coordinate[0]][coordinate[1]] = piece_name
         changeBoardState[firstClick[0]][firstClick[1]] = null
@@ -580,15 +773,79 @@ function Board({trialBoardState, setTrialBoardState}) {
         setColors(convertCoordinates(null))
         setFirstClick(null)
 
-        return changeBoardState
+        setisWhiteTurn(!isWhiteTurn)
+        setMoveCount(moveCount+1)
+  
+        setAttackMap(changeBoardState)
+        setTrialBoardState(changeBoardState)
+
+        return
       }
 
-      changeBoardState[coordinate[0]][coordinate[1]] = piece_name
-      changeBoardState[firstClick[0]][firstClick[1]] = null
+      //If the current coordinate was a pawn reaching the end of the board
+      if ((piece_name == "♙" || piece_name == "♟") && (coordinate[0] === 7 || coordinate[0] === 0)) {
+        setPawnToChange({pawnToChange: true, coordinate: structuredClone(coordinate), previousCoordinate: structuredClone(firstClick)})
+        return
+      }
+
+      //If the current piece is one of the pieces involved in castling
+      if ((piece_name == "♖" || piece_name == "♜" || piece_name == "♔" || piece_name == "♚")) {
+        //This is only meant to update the classes for castling (whiteCanCastle and blackCanCastle)
+        //We do the check for the attack map in the available moves function 
+        if (firstClick[0] == 0 && firstClick[1] == 0) {
+          //Black queen's rook
+          setBlackCanCastle((prev) => ({...prev, queenRookMoved: true}))
+        }
+        if (firstClick[0] == 0 && firstClick[1] == 7) {
+          //Black king's rook
+          setBlackCanCastle((prev) => ({...prev, kingRookMoved: true}))
+        }
+        if (firstClick[0] == 0 && firstClick[1] == 4) {
+          //Black king
+          setBlackCanCastle((prev) => ({...prev, kingMoved: true}))
+        }
+        if (firstClick[0] == 7 && firstClick[1] == 0) {
+          //White queen's rook
+          setWhiteCanCastle((prev) => ({...prev, queenRookMoved: true}))
+        }
+        if (firstClick[0] == 7 && firstClick[1] == 7) {
+          //white king's rook
+          setWhiteCanCastle((prev) => ({...prev, kingRookMoved: true}))
+        }
+        if (firstClick[0] == 7 && firstClick[1] == 4) {
+          //Black white king
+          setWhiteCanCastle((prev) => ({...prev, kingMoved: true}))
+        }
+      }
+
+      //if castle move, move the rook to it's appropriate place
+      if ((piece_name == "♔" || piece_name == "♚")) {
+        let rookColor = isWhiteTurn ? "♖" : "♜"
+        let currentRookQoordinate = []
+        let newRookQoordinate = []
+        //if the current click is on the king side
+        if (coordinate[1] == 6) {
+          currentRookQoordinate = [structuredClone(coordinate[0]), 7] 
+          newRookQoordinate = [structuredClone(coordinate[0]), 5]
+          console.log('entered')
+        }
+        if (coordinate[1] == 2) {
+          currentRookQoordinate = [structuredClone(coordinate[0]), 0] 
+          newRookQoordinate = [structuredClone(coordinate[0]), 3]
+        }
+
+        movePiece(rookColor, newRookQoordinate, currentRookQoordinate)
+
+      }
       
+
+      movePiece(piece_name, coordinate, firstClick)
+
+
+      updateKingPositions()
       setisWhiteTurn(!isWhiteTurn)
       setMoveCount(moveCount+1)
-      updateKingPositions()
+      
 
       setColors(convertCoordinates(null))
       setFirstClick(null)
@@ -608,12 +865,28 @@ function Board({trialBoardState, setTrialBoardState}) {
       <div className='grid grid-cols-8 w-80 border border-black'>        
         {colors.map((e, idx) => 
           (<Square 
-            color={e} id={ids[idx]} updateBoard={() => updateBoard(ids[idx])} piece={trialBoardState[Math.floor(idx/8)][idx%8]}/>)
+            color={e} id={ids[idx]} 
+            updateBoard={() => updateBoard(ids[idx])} 
+            piece={trialBoardState[Math.floor(idx/8)][idx%8]}/>)
         )}
       </div>
+
+      {/*Render this div only if there is a pawn to change */}
+      {pawnToChange.pawnToChange && 
+      <div className='flex flex-row justify-end h-10'>        
+        {changePawnColors.map((e, idx) => 
+          (<Square 
+            color={e} id={ids[idx]}
+            updateBoard={() => changePawnClick(ids[idx])}
+            piece={isWhiteTurn ? pawnWhitePieces[idx] : pawnBlackPieces[idx]}/>)
+        )}
+      </div>}
+
     </>
   )
 }
+
+
 
 function Square({color, id, piece, updateBoard}) {
   
