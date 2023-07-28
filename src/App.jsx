@@ -607,7 +607,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         let currentKing = pieceIsWhite ? "♔" : "♚"
         for (let i=0; i<8; i++) {
           let row = i
-          let currentRow = boardState[i]
+          let currentRow = boardstate[i]
           let col = currentRow.indexOf(currentKing)
           if (col !== -1) {
             position = [row, col]
@@ -677,7 +677,7 @@ function Board({trialBoardState, setTrialBoardState}) {
             break
           }
 
-          let currentPiece = boardState[currentCoordinate[0]][currentCoordinate[1]]
+          let currentPiece = boardstate[currentCoordinate[0]][currentCoordinate[1]]
 
           if (currentPiece && (currentPiece === opponentRook || currentPiece === opponentQueen)) {
             kingUnderCheck = true
@@ -705,7 +705,7 @@ function Board({trialBoardState, setTrialBoardState}) {
             break
           }
 
-          let currentPiece = boardState[currentCoordinate[0]][currentCoordinate[1]]
+          let currentPiece = boardstate[currentCoordinate[0]][currentCoordinate[1]]
           
           if (currentPiece && (currentPiece === opponentBishop || currentPiece === opponentQueen)) {
             kingUnderCheck = true
@@ -721,7 +721,7 @@ function Board({trialBoardState, setTrialBoardState}) {
 
       //Pawn
       for (let i=0; i<moves.pawn.length; i++) {
-        coor = moves.bishop[i]
+        coor = moves.pawn[i]
         row = coor[0]
         col = coor[1]
 
@@ -729,7 +729,7 @@ function Board({trialBoardState, setTrialBoardState}) {
           break
         }
         
-        let currentPiece = boardState[row][col]
+        let currentPiece = boardstate[row][col]
 
         if (currentPiece && (currentPiece === opponentPawn)) {
           kingUnderCheck = true
@@ -738,7 +738,7 @@ function Board({trialBoardState, setTrialBoardState}) {
 
       //Knight
       for (let i=0; i<moves.knight.length; i++) {
-        coor = moves.bishop[i]
+        coor = moves.knight[i]
         row = coor[0]
         col = coor[1]
 
@@ -746,7 +746,7 @@ function Board({trialBoardState, setTrialBoardState}) {
           break
         }
         
-        let currentPiece = boardState[row][col]
+        let currentPiece = boardstate[row][col]
 
         if (currentPiece && (currentPiece === opponentKnight)) {
           kingUnderCheck = true
@@ -773,10 +773,13 @@ function Board({trialBoardState, setTrialBoardState}) {
   
         checkBoardState[coordinate[0]][coordinate[1]] = null
         checkBoardState[currentCoordinate[0]][currentCoordinate[1]] = piece
+
+        console.log(checkBoardState)
   
-        if (kingCheck(checkBoardState)) {
+        if (!kingCheck(checkBoardState)) {
           checkAvailableMoves.push([currentCoordinate[0], currentCoordinate[1]])
         }
+        // checkBoardState[currentCoordinate[0]][currentCoordinate[1]] = null
       }
   
       availableMovesArray = structuredClone(checkAvailableMoves)
