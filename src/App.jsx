@@ -79,7 +79,7 @@ function Board({trialBoardState, setTrialBoardState}) {
 
  
 
-
+  
   useEffect(() => {
     if (moveCount === 0) {
       return
@@ -98,18 +98,8 @@ function Board({trialBoardState, setTrialBoardState}) {
     return value 
   }
   
-  function kingUnderCheck(currentBlackAttackMap, currentWhiteAttackMap) {
-    if (coordinateInAvaliableMoves(whiteKing.position, currentBlackAttackMap)) {
-      console.log("white King is under check")
-    }
-    if (coordinateInAvaliableMoves(blackKing.position, currentWhiteAttackMap)) {
-      console.log("Black King is under check")
-    }
-  }
-
-
   //Spagetti spagetti spagetti... Also this checks if a king is under attack
-  function setAttackMap(changeBoardState) {
+  function setAttackMap(changeBoardState, setTheState = true) {
     let blackPieces = ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
     let whitePieces = ["♙","♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
 
@@ -121,6 +111,15 @@ function Board({trialBoardState, setTrialBoardState}) {
     let piecesAttackingBlackKing = {}
     let piecesAttackingWhiteKing = {}
 
+    function kingUnderCheck(currentBlackAttackMap, currentWhiteAttackMap) {
+      if (coordinateInAvaliableMoves(whiteKing.position, currentBlackAttackMap)) {
+        return('♔')
+      }
+      if (coordinateInAvaliableMoves(blackKing.position, currentWhiteAttackMap)) {
+        return('♚')
+      }
+      return null
+    }
 
     //Fetch coordinates of white and black pieces in the current boardstate
     for (let row = 0; row < changeBoardState.length; row++) {
@@ -180,7 +179,11 @@ function Board({trialBoardState, setTrialBoardState}) {
     let uniqueBlackAttackMap = Array.from(new Set(structuredClone(blackAttackMap).map(JSON.stringify)), JSON.parse)
     let uniqueWhiteAttackMap = Array.from(new Set(structuredClone(whiteAttackMap).map(JSON.stringify)), JSON.parse)
 
-    kingUnderCheck(uniqueBlackAttackMap, uniqueWhiteAttackMap)
+    let whichKingUnderAttack = kingUnderCheck(uniqueBlackAttackMap, uniqueWhiteAttackMap) //string containing which king is under attack or null
+
+    if (!setTheState) {
+      return whichKingUnderAttack
+    }
 
     setBlackAttackMap(uniqueBlackAttackMap)
     setWhiteAttackMap(uniqueWhiteAttackMap)
@@ -217,11 +220,8 @@ function Board({trialBoardState, setTrialBoardState}) {
       return exists
     }
     //appends attackMovesArray and availableMoves conditionally
-    function addMove(move, scale) {
+    function addMove(move, scale = 1) {
       let add = true
-      if (!scale) {
-        scale = 1
-      }
       let scaleLength = structuredClone(scale)
       let newRow = coordinate[0] + scaleLength*move[0]
       let newCol = coordinate[1] + scaleLength*move[1]
@@ -240,7 +240,7 @@ function Board({trialBoardState, setTrialBoardState}) {
             add = false
           }
         }
-
+        //If the move IS an attack move
         if (move[1]**2 === 1) {
           attackMovesArray.push([newRow, newCol]) //Attack map
           //if the square is empty or contains a piece of the same color
@@ -271,337 +271,534 @@ function Board({trialBoardState, setTrialBoardState}) {
 
       return add
     }
-    
-    //Pieces
-    //White Pawn
-    if (piece == "♙" || piece == "♟") {
-      let multiplier = pieceIsWhite ? -1 : 1
 
-      let defaultMove = [
-        [1*multiplier, 0]
-      ]
+    function generateMoveList() {
 
-      let moves = [
-        [1*multiplier, 0],
-        [2*multiplier, 0]
-      ]
-
-      let captureMoves = [
-        [1*multiplier, 1],
-        [1*multiplier, -1]
-      ]
+      //Pieces
+      //White Pawn
+      if (piece == "♙" || piece == "♟") {
+        let multiplier = pieceIsWhite ? -1 : 1
+  
+        let defaultMove = [
+          [1*multiplier, 0]
+        ]
+  
+        let moves = [
+          [1*multiplier, 0],
+          [2*multiplier, 0]
+        ]
+  
+        let captureMoves = [
+          [1*multiplier, 1],
+          [1*multiplier, -1]
+        ]
+        
+        //Add Capture Moves
+        for (let i = 0; i < captureMoves.length; i++) {
+          let captureMove = captureMoves[i]
+          //If there is a piece
+          addMove(captureMove)
+        }
+        
+        //The first move
+        if ((coordinate[0] == 6 && pieceIsWhite) || coordinate[0] == 1 && !pieceIsWhite) {
+          //Add normal Moves
+          for (let i = 0; i < moves.length; i++) {
+            let move = moves[i]
+            let add = addMove(move)   
+            if (add === false) {
+              break
+            }
+          }
+        } else {
+          addMove(defaultMove[0])
+        }     
+        
+        //En passant
+        if (coordinate[0] == 3 && pieceIsWhite) {
+          let pawnLeft = [coordinate[0], coordinate[1] - 1]
+          let pawnRight = [coordinate[0], coordinate[1] + 1]
+  
+          //We don't have to check if the square that the piece is moving to is empty because the black piece could not have moved there otherweise
+  
+          if (boardState[pawnLeft[0]][pawnLeft[1]] === ("♟")) {
+            if (previousBoardState[moveCount - 1][1][pawnLeft[1]] === ("♟")) {
+  
+              let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
+              availableMovesArray.push(captureMove)
+  
+              let pawnToCapture = [pawnLeft[0], pawnLeft[1]]
+              setEnpassant(() => {
+                return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
+              })
+  
+            }
+          }
+          
+          if (boardState[pawnRight[0]][pawnRight[1]] === ("♟")) {
+            if (previousBoardState[moveCount - 1][1][pawnRight[1]] === ("♟")) {
+  
+              let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
+              availableMovesArray.push(captureMove)
+  
+              let pawnToCapture = [pawnRight[0], pawnRight[1]]
+              setEnpassant(() => {
+                return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
+              })
+  
+            }    
+          }
+        }
+  
+        if (coordinate[0] == 4 && !pieceIsWhite) {
+  
+          let pawnLeft = [coordinate[0], coordinate[1] - 1]
+          let pawnRight = [coordinate[0], coordinate[1] + 1]
+  
+          if (boardState[pawnLeft[0]][pawnLeft[1]] === ("♙")) {
+            if (previousBoardState[moveCount - 1][6][pawnLeft[1]] === ("♙")) {
+              let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
+              availableMovesArray.push(captureMove)
+  
+              let pawnToCapture = [pawnLeft[0], pawnLeft[1]]
+              setEnpassant(() => {
+                return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
+              })
+  
+            }
+          }
+          
+          if (boardState[pawnRight[0]][pawnRight[1]] === ("♙")) {
+            if (previousBoardState[moveCount - 1][6][pawnRight[1]] === ("♙")) {
+  
+              let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
+              availableMovesArray.push(captureMove)
+  
+              let pawnToCapture = [pawnRight[0], pawnRight[1]]
+              setEnpassant(() => {
+                return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
+              })
+  
+            }    
+          }
+        
+        }
+  
+          
       
-      //Add Capture Moves
-      for (let i = 0; i < captureMoves.length; i++) {
-        let captureMove = captureMoves[i]
-        //If there is a piece
-        addMove(captureMove)
+  
       }
-      
-      //The first move
-      if ((coordinate[0] == 6 && pieceIsWhite) || coordinate[0] == 1 && !pieceIsWhite) {
-        //Add normal Moves
+      //Knight
+      if (piece == "♘" || piece == "♞") {
+        let moves = [
+          [1, 2],
+          [-1, 2],
+          [1, -2],
+          [-1, -2],
+          [2, 1],
+          [-2, 1],
+          [2, -1],
+          [-2, -1]
+        ]
+  
+        for (let i = 0; i < moves.length; i++) {
+            let move = moves[i]
+            addMove(move)   
+        }
+      }
+      //Bishop
+      if (piece == "♗" || piece == "♝") {
+        let symbol = [
+          [1, 1],
+          [-1, 1],
+          [-1, -1],
+          [1, -1]
+        ]
+    
+        //Up and left
+        for (let j = 0; j < symbol.length; j++) {
+          let currentSymbol = symbol[j]
+          let add = true
+          for (let i = 1; i < 9; i++) {
+             add = addMove(currentSymbol, i)
+             if (add === false) {
+              add = true
+              break
+             }
+          }
+        }
+      }
+      //Rook
+      if (piece == "♖" || piece == "♜") {
+        let symbol = [
+          [1, 0],
+          [-1, 0],
+          [0, -1],
+          [0, 1]
+        ]
+    
+        for (let j = 0; j < symbol.length; j++) {
+          let currentSymbol = symbol[j]
+          let add = true
+          for (let i = 1; i < 9; i++) {
+             add = addMove(currentSymbol, i)
+             if (add === false) {
+              add = true
+              break
+             }
+          }
+        }
+      }
+      //Queen
+      if (piece == "♕" || piece == "♛") {
+        let symbol = [
+          [1, 0],
+          [-1, 0],
+          [0, -1],
+          [0, 1],
+          [1, 1],
+          [-1, 1],
+          [-1, -1],
+          [1, -1]
+        ]
+    
+        //Up and left
+        for (let j = 0; j < symbol.length; j++) {
+          let currentSymbol = symbol[j]
+          let add = true
+          for (let i = 1; i < 9; i++) {
+             add = addMove(currentSymbol, i)
+             if (add === false) {
+              add = true
+              break
+             }
+          }
+        }
+      }
+      //King
+      if (piece == "♔" || piece == "♚") {
+        let moves = [
+          [1, 0],
+          [-1, 0],
+          [0, -1],
+          [0, 1],
+          [1, 1],
+          [-1, 1],
+          [-1, -1],
+          [1, -1]
+        ]
+  
         for (let i = 0; i < moves.length; i++) {
           let move = moves[i]
-          let add = addMove(move)   
-          if (add === false) {
-            break
-          }
-        }
-      } else {
-        addMove(defaultMove[0])
-      }     
-      
-      //En passant
-      if (coordinate[0] == 3 && pieceIsWhite) {
-        let pawnLeft = [coordinate[0], coordinate[1] - 1]
-        let pawnRight = [coordinate[0], coordinate[1] + 1]
-
-        //We don't have to check if the square that the piece is moving to is empty because the black piece could not have moved there otherweise
-
-        if (boardState[pawnLeft[0]][pawnLeft[1]] === ("♟")) {
-          if (previousBoardState[moveCount - 1][1][pawnLeft[1]] === ("♟")) {
-
-            let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
-            availableMovesArray.push(captureMove)
-
-            let pawnToCapture = [pawnLeft[0], pawnLeft[1]]
-            setEnpassant(() => {
-              return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
-            })
-
-          }
+          addMove(move)        
         }
         
-        if (boardState[pawnRight[0]][pawnRight[1]] === ("♟")) {
-          if (previousBoardState[moveCount - 1][1][pawnRight[1]] === ("♟")) {
-
-            let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
-            availableMovesArray.push(captureMove)
-
-            let pawnToCapture = [pawnRight[0], pawnRight[1]]
-            setEnpassant(() => {
-              return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
-            })
-
-          }    
-        }
-      }
-
-      if (coordinate[0] == 4 && !pieceIsWhite) {
-
-        let pawnLeft = [coordinate[0], coordinate[1] - 1]
-        let pawnRight = [coordinate[0], coordinate[1] + 1]
-
-        if (boardState[pawnLeft[0]][pawnLeft[1]] === ("♙")) {
-          if (previousBoardState[moveCount - 1][6][pawnLeft[1]] === ("♙")) {
-            let captureMove = [pawnLeft[0] + 1*multiplier, pawnLeft[1]]
-            availableMovesArray.push(captureMove)
-
-            let pawnToCapture = [pawnLeft[0], pawnLeft[1]]
-            setEnpassant(() => {
-              return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
-            })
-
-          }
-        }
-        
-        if (boardState[pawnRight[0]][pawnRight[1]] === ("♙")) {
-          if (previousBoardState[moveCount - 1][6][pawnRight[1]] === ("♙")) {
-
-            let captureMove = [pawnRight[0] + 1*multiplier, pawnRight[1]]
-            availableMovesArray.push(captureMove)
-
-            let pawnToCapture = [pawnRight[0], pawnRight[1]]
-            setEnpassant(() => {
-              return {capture: pawnToCapture, count: structuredClone(moveCount), move: captureMove}
-            })
-
-          }    
-        }
-      
-      }
-
-        
-    
-
-    }
-    //Knight
-    if (piece == "♘" || piece == "♞") {
-      let moves = [
-        [1, 2],
-        [-1, 2],
-        [1, -2],
-        [-1, -2],
-        [2, 1],
-        [-2, 1],
-        [2, -1],
-        [-2, -1]
-      ]
-
-      for (let i = 0; i < moves.length; i++) {
-          let move = moves[i]
-          addMove(move)   
-      }
-    }
-    //Bishop
-    if (piece == "♗" || piece == "♝") {
-      let symbol = [
-        [1, 1],
-        [-1, 1],
-        [-1, -1],
-        [1, -1]
-      ]
-  
-      //Up and left
-      for (let j = 0; j < symbol.length; j++) {
-        let currentSymbol = symbol[j]
-        let add = true
-        for (let i = 1; i < 9; i++) {
-           add = addMove(currentSymbol, i)
-           if (add === false) {
-            add = true
-            break
-           }
-        }
-      }
-    }
-    //Rook
-    if (piece == "♖" || piece == "♜") {
-      let symbol = [
-        [1, 0],
-        [-1, 0],
-        [0, -1],
-        [0, 1]
-      ]
-  
-      for (let j = 0; j < symbol.length; j++) {
-        let currentSymbol = symbol[j]
-        let add = true
-        for (let i = 1; i < 9; i++) {
-           add = addMove(currentSymbol, i)
-           if (add === false) {
-            add = true
-            break
-           }
-        }
-      }
-    }
-    //Queen
-    if (piece == "♕" || piece == "♛") {
-      let symbol = [
-        [1, 0],
-        [-1, 0],
-        [0, -1],
-        [0, 1],
-        [1, 1],
-        [-1, 1],
-        [-1, -1],
-        [1, -1]
-      ]
-  
-      //Up and left
-      for (let j = 0; j < symbol.length; j++) {
-        let currentSymbol = symbol[j]
-        let add = true
-        for (let i = 1; i < 9; i++) {
-           add = addMove(currentSymbol, i)
-           if (add === false) {
-            add = true
-            break
-           }
-        }
-      }
-    }
-    //King
-    if (piece == "♔" || piece == "♚") {
-      let moves = [
-        [1, 0],
-        [-1, 0],
-        [0, -1],
-        [0, 1],
-        [1, 1],
-        [-1, 1],
-        [-1, -1],
-        [1, -1]
-      ]
-
-      for (let i = 0; i < moves.length; i++) {
-        let move = moves[i]
-        addMove(move)        
-      }
-      
-      //This adds the castle moves, but does not contribute to the attackMovesArray or the attackMap
-      if (!attack) {
-        let thisAttackMap = pieceIsWhite ? structuredClone(blackAttackMap) : structuredClone(whiteAttackMap)
-        console.log(thisAttackMap)
-        let movesToRemove = []
-        
-        //Adds moves which are in the attack map to the list of moves to remove
-        for (let i = 0; i<availableMovesArray.length; i++) {
-          let current_available_move = availableMovesArray[i]
+        //This adds the castle moves, but does not contribute to the attackMovesArray or the attackMap
+        if (!attack) {
+          let thisAttackMap = pieceIsWhite ? structuredClone(blackAttackMap) : structuredClone(whiteAttackMap)
+          let movesToRemove = []
           
-          if (coordinateInAvaliableMoves(current_available_move, thisAttackMap)) {
-            movesToRemove.push(current_available_move)
+          //Adds moves which are in the attack map to the list of moves to remove
+          for (let i = 0; i<availableMovesArray.length; i++) {
+            let current_available_move = availableMovesArray[i]
+            
+            if (coordinateInAvaliableMoves(current_available_move, thisAttackMap)) {
+              movesToRemove.push(current_available_move)
+            }
           }
-        }
-        //Removes those moves
-        availableMovesArray = availableMovesArray.filter((e) => {
-          if (!movesToRemove.includes(e)) {
-            return e
+          //Removes those moves
+          availableMovesArray = availableMovesArray.filter((e) => {
+            if (!movesToRemove.includes(e)) {
+              return e
+            }
+          })
+          //-------------------------
+  
+          //Check if the king can castle, if the king can castle, add that to the available moves
+          let canQueenCastle = true
+          let canKingCastle = true
+   
+          let thisKingCastle = pieceIsWhite ? structuredClone(whiteCanCastle) : structuredClone(blackCanCastle)
+          let row = pieceIsWhite ? 7 : 0
+          let castleMoves = pieceIsWhite ? [[7, 2], [7, 6]] : [[0, 2], [0, 6]]
+          let queenSquaresInTheWay = pieceIsWhite ? [[7, 1], [7, 2], [7, 3]] : [[0, 1], [0, 2], [0, 3]]
+          let kingSquaresInTheWay = pieceIsWhite ? [[7, 5], [7, 6]] : [[0, 5], [0, 6]]
+  
+          // if any of the castle moves are attacked
+          let attackMoves = thisAttackMap.filter((attackMove) => {
+            if (attackMove[0] == row) {
+              return attackMove
+            }
+          }) //List of all the attack moves on the first row of whoever's turn it is
+  
+          //Which side and if king is attacked
+          for (let i = 0; i < attackMoves.length; i++) {
+            let currentAttackMove = attackMoves[i]
+            
+            if (currentAttackMove[1] > 4) {
+              canKingCastle = false
+            }
+            if (currentAttackMove[1] < 4) {
+              canQueenCastle = false
+            }
+            if (currentAttackMove[1] == 4) {
+              canQueenCastle = false
+              canKingCastle = false
+            }
           }
-        })
-        //-------------------------
-
-        //Check if the king can castle, if the king can castle, add that to the available moves
-        let canQueenCastle = true
-        let canKingCastle = true
- 
-        let thisKingCastle = pieceIsWhite ? structuredClone(whiteCanCastle) : structuredClone(blackCanCastle)
-        let row = pieceIsWhite ? 7 : 0
-        let castleMoves = pieceIsWhite ? [[7, 2], [7, 6]] : [[0, 2], [0, 6]]
-        let queenSquaresInTheWay = pieceIsWhite ? [[7, 1], [7, 2], [7, 3]] : [[0, 1], [0, 2], [0, 3]]
-        let kingSquaresInTheWay = pieceIsWhite ? [[7, 5], [7, 6]] : [[0, 5], [0, 6]]
-
-        // if any of the castle moves are attacked
-        let attackMoves = thisAttackMap.filter((attackMove) => {
-          if (attackMove[0] == row) {
-            return attackMove
+  
+          //Are there pieces between the squares
+          for (let i = 0; i < queenSquaresInTheWay.length; i++) {
+            let queenSquare = queenSquaresInTheWay[i]
+            let row = queenSquare[0]
+            let col = queenSquare[1]
+            if (boardState[row][col]) {
+              canQueenCastle = false
+              break
+            }
           }
-        }) //List of all the attack moves on the first row of whoever's turn it is
-
-        //Which side and if king is attacked
-        for (let i = 0; i < attackMoves.length; i++) {
-          let currentAttackMove = attackMoves[i]
-          
-          if (currentAttackMove[1] > 4) {
-            canKingCastle = false
+          for (let i = 0; i < kingSquaresInTheWay.length; i++) {
+            let kingSquare = kingSquaresInTheWay[i]
+            let row = kingSquare[0]
+            let col = kingSquare[1]
+            if (boardState[row][col]) {
+              canKingCastle = false
+              break
+            }
           }
-          if (currentAttackMove[1] < 4) {
+  
+          //If the castle pieces have moved
+          if (thisKingCastle.kingMoved == true) {
             canQueenCastle = false
-          }
-          if (currentAttackMove[1] == 4) {
-            canQueenCastle = false
             canKingCastle = false
-          }
-        }
-
-        //Are there pieces between the squares
-        for (let i = 0; i < queenSquaresInTheWay.length; i++) {
-          let queenSquare = queenSquaresInTheWay[i]
-          let row = queenSquare[0]
-          let col = queenSquare[1]
-          if (boardState[row][col]) {
+          } 
+          if (thisKingCastle.queenRookMoved == true) {
             canQueenCastle = false
-            break
+          }       
+          if (thisKingCastle.kingRookMoved == true) {
+            canKingCastle = false 
           }
-        }
-        for (let i = 0; i < kingSquaresInTheWay.length; i++) {
-          let kingSquare = kingSquaresInTheWay[i]
-          let row = kingSquare[0]
-          let col = kingSquare[1]
-          if (boardState[row][col]) {
-            canKingCastle = false
-            break
+          // At this point we know:
+            // If either the king side or queen side is attacked
+            // If the king is attacked
+            // If there is a piece contained in any of the squares between
+            // If any of the pieces involved in castling have moved
+          let queenCastleMoves = structuredClone(castleMoves[0])
+          let kingCastleMoves = structuredClone(castleMoves[1])
+  
+          if (canKingCastle == true) {
+            availableMovesArray.push([kingCastleMoves[0], kingCastleMoves[1]])
           }
-        }
-
-        //If the castle pieces have moved
-        if (thisKingCastle.kingMoved == true) {
-          canQueenCastle = false
-          canKingCastle = false
-        } 
-        if (thisKingCastle.queenRookMoved == true) {
-          canQueenCastle = false
-        }       
-        if (thisKingCastle.kingRookMoved == true) {
-          canKingCastle = false 
-        }
-        // At this point we know:
-          // If either the king side or queen side is attacked
-          // If the king is attacked
-          // If there is a piece contained in any of the squares between
-          // If any of the pieces involved in castling have moved
-        let queenCastleMoves = structuredClone(castleMoves[0])
-        let kingCastleMoves = structuredClone(castleMoves[1])
-
-        if (canKingCastle == true) {
-          availableMovesArray.push([kingCastleMoves[0], kingCastleMoves[1]])
-        }
-        if (canQueenCastle == true) {
-          availableMovesArray.push([queenCastleMoves[0], queenCastleMoves[1]])
+          if (canQueenCastle == true) {
+            availableMovesArray.push([queenCastleMoves[0], queenCastleMoves[1]])
+          }
         }
       }
+      
     }
+
+    generateMoveList()
+
+
+    function kingCheck(boardstate = trialBoardState) {
+     
+      let getKingPosition = () => {
+        let position = []
+        let currentKing = pieceIsWhite ? "♔" : "♚"
+        for (let i=0; i<8; i++) {
+          let row = i
+          let currentRow = boardState[i]
+          let col = currentRow.indexOf(currentKing)
+          if (col !== -1) {
+            position = [row, col]
+            return position
+          }
+        }
+        console.log("guh")
+      }
+
+      let kingPosition = getKingPosition()
+      let kingUnderCheck = false
+      let currentCoordinate = structuredClone(kingPosition)
+      let multiplier = pieceIsWhite ? -1 : 1
+
+      const moves = {
+        rook: [
+          [1, 0],
+          [-1, 0],
+          [0, -1],
+          [0, 1]
+        ],
+        bishop: [
+          [1, 1],
+          [-1, 1],
+          [-1, -1],
+          [1, -1]
+        ],
+        knight: [
+          [1, 2],
+          [-1, 2],
+          [1, -2],
+          [-1, -2],
+          [2, 1],
+          [-2, 1],
+          [2, -1],
+          [-2, -1]
+        ],
+        pawn: [
+          [1*multiplier, 1],
+          [1*multiplier, -1]
+        ]
+      }
+
+      let opponentRook = pieceIsWhite ? "♜" : "♖"
+      let opponentBishop = pieceIsWhite ? "♝" : "♗"
+      let opponentKnight = pieceIsWhite ? "♞" : "♘"
+      let opponentQueen = pieceIsWhite ? "♛" : "♕"
+      let opponentPawn = pieceIsWhite ? "♟" : "♙"
+      let ownPieces = pieceIsWhite ? ["♙", "♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"] : ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
+      let coor = 0
+      let row = 0
+      let col = 0
+
+      
+
+      //Rook
+      for (let i=0; i<moves.rook.length; i++) {
+        coor = moves.rook[i]
+        row = coor[0]
+        col = coor[1]
+
+        for (let j=0; j<8; j++) {
+          currentCoordinate[0] = currentCoordinate[0] + row
+          currentCoordinate[1] = currentCoordinate[1] + col
+
+          if (!coordinateExists(currentCoordinate[0], currentCoordinate[1])) {
+            break
+          }
+
+          let currentPiece = boardState[currentCoordinate[0]][currentCoordinate[1]]
+
+          if (currentPiece && (currentPiece === opponentRook || currentPiece === opponentQueen)) {
+            kingUnderCheck = true
+            console.log(currentPiece)
+            break
+          }
+          if (ownPieces.includes(currentPiece)) {
+            break
+          }
+        }
+        currentCoordinate = structuredClone(kingPosition)
+      }
+
+      //Bishop
+      for (let i=0; i<moves.bishop.length; i++) {
+        coor = moves.bishop[i]
+        row = coor[0]
+        col = coor[1]
+
+        for (let j=0; j<8; j++) {
+          currentCoordinate[0] = currentCoordinate[0] + row
+          currentCoordinate[1] = currentCoordinate[1] + col
+
+          if (!coordinateExists(currentCoordinate[0], currentCoordinate[1])) {
+            break
+          }
+
+          let currentPiece = boardState[currentCoordinate[0]][currentCoordinate[1]]
+          
+          if (currentPiece && (currentPiece === opponentBishop || currentPiece === opponentQueen)) {
+            kingUnderCheck = true
+            break
+          }
+
+          if (ownPieces.includes(currentPiece)) {
+            break
+          }
+        }
+        currentCoordinate = structuredClone(kingPosition)
+      }
+
+      //Pawn
+      for (let i=0; i<moves.pawn.length; i++) {
+        coor = moves.bishop[i]
+        row = coor[0]
+        col = coor[1]
+
+        if (!coordinateExists(row, col)) {
+          break
+        }
+        
+        let currentPiece = boardState[row][col]
+
+        if (currentPiece && (currentPiece === opponentPawn)) {
+          kingUnderCheck = true
+        }
+      }
+
+      //Knight
+      for (let i=0; i<moves.knight.length; i++) {
+        coor = moves.bishop[i]
+        row = coor[0]
+        col = coor[1]
+
+        if (!coordinateExists(row, col)) {
+          break
+        }
+        
+        let currentPiece = boardState[row][col]
+
+        if (currentPiece && (currentPiece === opponentKnight)) {
+          kingUnderCheck = true
+        }
+      }
+
+      return kingUnderCheck
+
+    }
+
+    //Removing moves that put the king under check
+
+    if (!attack) {
+      let checkAvailableMoves = []
+      for (let i=0; i<availableMovesArray.length; i++) {
+        //Initialize boardstate clone
+        //modify boardstate clone
+        //pass boardstate clone through kingCheck() function
+        //if it returns true, remove that element from the available moves
+  
+        let currentCoordinate = availableMovesArray[i]
+  
+        let checkBoardState = structuredClone(boardState)
+  
+        checkBoardState[coordinate[0]][coordinate[1]] = null
+        checkBoardState[currentCoordinate[0]][currentCoordinate[1]] = piece
+  
+        if (kingCheck(checkBoardState)) {
+          checkAvailableMoves.push([currentCoordinate[0], currentCoordinate[1]])
+        }
+      }
+  
+      availableMovesArray = structuredClone(checkAvailableMoves)
+    }
+
 
     if (attack) {
       return attackMovesArray
     }
 
     return availableMovesArray
-}
+  }
 
-//Return Linear index of coordinates and the color array
+  //Moves that don't put your king in check
+  function trueAvailableMoves(movesArr, coordinate) {
+    let trueMoves = structuredClone(movesArr)
+    console.log(coordinate)
+
+    return trueMoves
+  }
+
+  //Return Linear index of coordinates and the color array
   function convertCoordinates(availableMovesArray) {
   let convertedCoordinates = []
   let color_arr = colors
@@ -642,26 +839,8 @@ function Board({trialBoardState, setTrialBoardState}) {
   }
 
   return color_arr
-}
+  }
 
-  //Return if the Move at the current coordinate is Valid
-  function isValidMove(coordinate) {
-    
-    let isValid = true
-    let availableMoves = []
-
-
-    if ((coordinate[0] === firstClick[0]) && (coordinate[1] === firstClick[1])) {
-      isValid = false
-      return isValid;
-    }
-
-    //Check if a coordinate is in a list of available moves
-    availableMoves = currentAvailableMoves(firstClick)
-    isValid = coordinateInAvaliableMoves(coordinate, availableMoves)
-
-    return isValid;
-}
   //When one of the pieces is clicked, use the state of the pawnToChange object to make the changes
   function changePawnClick(id) {
     if (pawnToChange.pawnToChange === false) {
@@ -688,6 +867,25 @@ function Board({trialBoardState, setTrialBoardState}) {
     setAttackMap(changeBoardState)
     setTrialBoardState(changeBoardState)
 
+  }
+
+  //Return if the Move at the current coordinate is Valid
+  function isValidMove(coordinate) {
+    
+    let isValid = true
+    let availableMoves = []
+
+
+    if ((coordinate[0] === firstClick[0]) && (coordinate[1] === firstClick[1])) {
+      isValid = false
+      return isValid;
+    }
+
+    //Check if a coordinate is in a list of available moves
+    availableMoves = trueAvailableMoves(currentAvailableMoves(firstClick), firstClick)
+    isValid = coordinateInAvaliableMoves(coordinate, availableMoves)
+
+    return isValid;
   }
 
   //Update board state
@@ -733,7 +931,7 @@ function Board({trialBoardState, setTrialBoardState}) {
         if (isWhiteTurn === pieceIsWhite) {
           //Set the first click and display the available moves
           setFirstClick(coordinate)
-          convertCoordinates(currentAvailableMoves(coordinate))   
+          convertCoordinates(trueAvailableMoves(currentAvailableMoves(coordinate), coordinate))   
         }
         return
       } 
@@ -819,7 +1017,7 @@ function Board({trialBoardState, setTrialBoardState}) {
       }
 
       //if castle move, move the rook to it's appropriate place
-      if ((piece_name == "♔" || piece_name == "♚")) {
+      if ((piece_name == "♔" || piece_name == "♚") && (coordinate[1] == firstClick[1] + 2 || coordinate[1] == firstClick[1] - 2)) {
         let rookColor = isWhiteTurn ? "♖" : "♜"
         let currentRookQoordinate = []
         let newRookQoordinate = []
@@ -827,7 +1025,6 @@ function Board({trialBoardState, setTrialBoardState}) {
         if (coordinate[1] == 6) {
           currentRookQoordinate = [structuredClone(coordinate[0]), 7] 
           newRookQoordinate = [structuredClone(coordinate[0]), 5]
-          console.log('entered')
         }
         if (coordinate[1] == 2) {
           currentRookQoordinate = [structuredClone(coordinate[0]), 0] 
