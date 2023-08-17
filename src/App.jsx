@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
-
+import { io } from "socket.io-client";
+const socket = io('http://localhost:3000');
 
 
 function App() {
+
+
   
   const [trialBoardState, setTrialBoardState] = useState([
     ["♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"],
@@ -15,20 +18,30 @@ function App() {
     ["♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
   ])
 
+  const [userColor, setUserColor] = useState(null);
 
+  useEffect(() => {
+    socket.on("color", (color) => {
+      setUserColor(structuredClone(color));
+    });
+  }, []);
+
+  useEffect(() => {
+    //emit new board state
+  }, [trialBoardState])
+  
   
   return (
     <>
       <div className='flex justify-center mt-32'>
-        <Board trialBoardState={trialBoardState} setTrialBoardState={setTrialBoardState}/>
+        <Board trialBoardState={trialBoardState} setTrialBoardState={setTrialBoardState} userColor={userColor}/>
       </div>
     </>
   )
 }
 
-function Board({trialBoardState, setTrialBoardState}) {
+function Board({trialBoardState, setTrialBoardState, userColor}) {
 
-  const [ids, setIds] = useState(Array.from({length: 64}, (_, i) => i))
   const [firstClick, setFirstClick] = useState(undefined)
   const [isWhiteTurn, setisWhiteTurn] = useState(true)
   const [moveCount, setMoveCount] = useState(0)
@@ -74,7 +87,14 @@ function Board({trialBoardState, setTrialBoardState}) {
   let changePawnColors = ["bg-gray-400", "bg-gray-100", "bg-gray-400", "bg-gray-100"]
   let pawnBlackPieces = ["♜", "♞", "♝", "♛"]
   let pawnWhitePieces = ["♖", "♘", "♗", "♕"]
+  let ids = Array.from({length: 64}, (_, i) => i)
 
+
+  socket.on('updateBoard', (newBoardState) => {
+    setTrialBoardState(newBoardState)
+    setisWhiteTurn(!isWhiteTurn)
+    setMoveCount(moveCount + 1)
+  })
   
 
  
@@ -773,8 +793,6 @@ function Board({trialBoardState, setTrialBoardState}) {
   
         checkBoardState[coordinate[0]][coordinate[1]] = null
         checkBoardState[currentCoordinate[0]][currentCoordinate[1]] = piece
-
-        console.log(checkBoardState)
   
         if (!kingCheck(checkBoardState)) {
           checkAvailableMoves.push([currentCoordinate[0], currentCoordinate[1]])
@@ -791,14 +809,6 @@ function Board({trialBoardState, setTrialBoardState}) {
     }
 
     return availableMovesArray
-  }
-
-  //Moves that don't put your king in check
-  function trueAvailableMoves(movesArr, coordinate) {
-    let trueMoves = structuredClone(movesArr)
-    console.log(coordinate)
-
-    return trueMoves
   }
 
   //Return Linear index of coordinates and the color array
@@ -841,6 +851,7 @@ function Board({trialBoardState, setTrialBoardState}) {
     color_arr[yellowCoordinate] = "bg-yellow-300"
   }
 
+
   return color_arr
   }
 
@@ -869,6 +880,7 @@ function Board({trialBoardState, setTrialBoardState}) {
 
     setAttackMap(changeBoardState)
     setTrialBoardState(changeBoardState)
+    socket.emit('updateBoard', changeBoardState)
 
   }
 
@@ -885,7 +897,7 @@ function Board({trialBoardState, setTrialBoardState}) {
     }
 
     //Check if a coordinate is in a list of available moves
-    availableMoves = trueAvailableMoves(currentAvailableMoves(firstClick), firstClick)
+    availableMoves = currentAvailableMoves(firstClick)
     isValid = coordinateInAvaliableMoves(coordinate, availableMoves)
 
     return isValid;
@@ -896,8 +908,10 @@ function Board({trialBoardState, setTrialBoardState}) {
 
     //The position is the linear index of the square
     let coordinate = [Math.floor(position/8), position%8]
-
     let blackPieces = ["♟", "♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"]
+    let whitePieces = ["♙", "♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
+
+
 
     //If there is a pawn To change, don't do anything...
     if (pawnToChange.pawnToChange) {
@@ -905,7 +919,30 @@ function Board({trialBoardState, setTrialBoardState}) {
       return
     }
 
+    setAttackMap(trialBoardState)
     
+    // Adds first click
+    if (!firstClick) {
+      //If there is a piece
+      if (trialBoardState[coordinate[0]][coordinate[1]]) {
+
+        let pieceIsWhite = !blackPieces.includes(trialBoardState[coordinate[0]][coordinate[1]])
+        let userIsWhite = userColor === "black" ? false : true
+        
+        if ((isWhiteTurn === pieceIsWhite) && (userIsWhite === pieceIsWhite)) {
+          setFirstClick(coordinate)
+          convertCoordinates(currentAvailableMoves(coordinate))   
+        }
+        return
+      } 
+      return
+    } 
+
+    let pieceIsWhite = !blackPieces.includes(trialBoardState[coordinate[0]][coordinate[1]])
+    let piece_name = trialBoardState[firstClick[0]][firstClick[1]]
+    let changeBoardState = structuredClone(trialBoardState)
+
+
     function updateKingPositions() {
       //White king
       if (piece_name === "♔") {
@@ -917,37 +954,6 @@ function Board({trialBoardState, setTrialBoardState}) {
       }
     }
 
-
-    setAttackMap(trialBoardState)
-    
-    // Adds first click
-    if (!firstClick) {
-      //If there is a piece
-      if (trialBoardState[coordinate[0]][coordinate[1]]) {
-        //Checks color of piece
-        
-        let pieceIsWhite = true
-        if (blackPieces.includes(trialBoardState[coordinate[0]][coordinate[1]])) {
-          pieceIsWhite = false
-        }
-        //If the color of the piece matches the turn
-        if (isWhiteTurn === pieceIsWhite) {
-          //Set the first click and display the available moves
-          setFirstClick(coordinate)
-          convertCoordinates(trueAvailableMoves(currentAvailableMoves(coordinate), coordinate))   
-        }
-        return
-      } 
-      return
-    }
-
-    let pieceIsWhite = true
-    if (blackPieces.includes(trialBoardState[coordinate[0]][coordinate[1]])) {
-      pieceIsWhite = false
-    }
-    let piece_name = trialBoardState[firstClick[0]][firstClick[1]]
-    //duplicate current board state onto ChangeBoardState
-    let changeBoardState = structuredClone(trialBoardState)
 
     function movePiece(piece, newSquare, oldSquare) {
       changeBoardState[newSquare[0]][newSquare[1]] = piece
@@ -979,6 +985,7 @@ function Board({trialBoardState, setTrialBoardState}) {
   
         setAttackMap(changeBoardState)
         setTrialBoardState(changeBoardState)
+        socket.emit('updateBoard', changeBoardState)
 
         return
       }
@@ -1052,24 +1059,32 @@ function Board({trialBoardState, setTrialBoardState}) {
 
       setAttackMap(changeBoardState)
       setTrialBoardState(changeBoardState)
+      socket.emit('updateBoard', changeBoardState)
       
 
     } else {
       setColors(convertCoordinates(null))
       setFirstClick(null)
     }
-}
+  }
+
 
   return (
     <>
       <div className='grid grid-cols-8 w-80 border border-black'>        
-        {colors.map((e, idx) => 
+        {userColor === "black" ? colors.slice().reverse().map((e, idx) => 
+          (<Square 
+            color={e} id={ids[63 - idx]} 
+            updateBoard={() => updateBoard(ids[63 - idx])} 
+            piece={trialBoardState[Math.floor((63 - idx)/8)][(63 - idx)%8]}/>)
+        ) : colors.map((e, idx) => 
           (<Square 
             color={e} id={ids[idx]} 
             updateBoard={() => updateBoard(ids[idx])} 
             piece={trialBoardState[Math.floor(idx/8)][idx%8]}/>)
         )}
       </div>
+
 
       {/*Render this div only if there is a pawn to change */}
       {pawnToChange.pawnToChange && 
